@@ -49,6 +49,8 @@ def get_cli_arguments():
                             help='Create a volume snapshot instead of the default Glance snapshot (optional)')
     instpar.add_argument('--install-volume-size', dest='install_volume_size', default=10,
                             help='Size of the install destination volume in GB (default: 10)')
+    instpar.add_argument('--direct-boot', dest='direct_boot', action='store_true', default=False,
+                         help='Use Nova direct boot of kernel/ramdisk and command line rather than a syslinux image (optional)')
     instpar.add_argument('--install-tree-url', dest='install_tree_url',
                              help='URL for preferred network install tree (optional)')
     instpar.add_argument('--distro', dest='distro', help='distro - must be "rpm" or "ubuntu" (optional)')
@@ -124,37 +126,44 @@ def create_image(args):
         # Generate "blank" syslinux bootable mini-image
         # This is the only step that strictly requires root access due to the need
         # for a loopback mount to install the bootloader
-        generate_blank_syslinux()
+        if not args.direct_boot:
+            generate_blank_syslinux()
 
-        # Take a copy of it
-        if args.create_volume:
-            disk_format = 'raw'
-            modified_image = "./syslinux_modified_%s.raw" % os.getpid()
-            try:
-                subprocess_check_output(["qemu-img","convert","-O","raw","./syslinux.qcow2",modified_image])
-            except:
-                print "Exception while converting image to raw"
-                raise
-        else:
-            disk_format = 'qcow2'
-            modified_image = "./syslinux_modified_%s.qcow2" % os.getpid()
-            shutil.copy("./syslinux.qcow2",modified_image)
+	    # Take a copy of it
+	    if args.create_volume:
+		disk_format = 'raw'
+		modified_image = "./syslinux_modified_%s.raw" % os.getpid()
+		try:
+		    subprocess_check_output(["qemu-img","convert","-O","raw","./syslinux.qcow2",modified_image])
+		except:
+		    print "Exception while converting image to raw"
+		    raise
+	    else:
+		disk_format = 'qcow2'
+		modified_image = "./syslinux_modified_%s.qcow2" % os.getpid()
+		shutil.copy("./syslinux.qcow2",modified_image)
 
         # Generate the content to put into the image
         tmp_content_dir = mkdtemp()
         print "Collecting boot content for auto-install image"
-        generate_boot_content(install_tree_url, tmp_content_dir, distro, args.create_volume)
+        (kernel_file, initrd_file, cmdline) = generate_boot_content(install_tree_url, tmp_content_dir, distro, args.create_volume)
 
-        # Copy in the kernel, initrd and conf files into the blank boot stub using libguestfs
-        print "Copying boot content into a bootable syslinux image"
-        copy_content_to_image(tmp_content_dir, modified_image)
+        if args.direct_boot:
+            # Create kernel and ramdisk images in glance, then create the bootable blank
+            # image in glance pointing to the kernel and ramdisk, with the appropriate commandline
+            install_image_file = tmp_content_dir + "/direct_boot_img_%s.qcow2" % (os.getpid())
+            install_image = generate_direct_boot_image(kernel_file, initrd_file, cmdline, args.install_volume_size, install_image_file, creds, args.glance_url)
+        else:
+	    # Copy in the kernel, initrd and conf files into the blank boot stub using libguestfs
+	    print "Copying boot content into a bootable syslinux image"
+	    copy_content_to_image(tmp_content_dir, modified_image)
 
-        # Upload the resulting image to glance
-        print "Uploading image to glance"
-        install_image = glance_upload(image_filename = modified_image, image_url = None, creds = creds, glance_url = args.glance_url,
-                              name = "INSTALL for: %s" % (image_name), disk_format=disk_format)
+	    # Upload the resulting image to glance
+	    print "Uploading image to glance"
+	    install_image = glance_upload(image_filename = modified_image, image_url = None, creds = creds, glance_url = args.glance_url,
+				  name = "INSTALL for: %s" % (image_name), disk_format=disk_format)
 
-        print "Uploaded successfully as glance image (%s)" % (install_image.id)
+	print "Uploaded successfully as glance image (%s)" % (install_image.id)
 
         install_volume=None
         # TODO: Make volume size configurable
@@ -217,6 +226,13 @@ def create_image(args):
             print "Finished image name is: %s" % (image_name)
             finished = True
 
+        if args.direct_boot:
+            # Remove the direct boot data from the snapshot
+            # If we don't do this, the image will just keep reinstalling - no so good
+            print "Removing AKI, ARI and command line from glance snapshot information"
+            remove_direct_boot_data(finished_image_id, creds, args.glance_url)
+
+            
     except Exception as e:
         print "Uncaught exception encountered during install"
         print str(e)

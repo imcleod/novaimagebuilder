@@ -130,20 +130,25 @@ def http_download_file(url, filename):
 
 ### Borrowed from Image Factory OpenStack plugin
 def glance_upload(image_filename = None, image_url = None, creds = {'auth_url': None, 'password': None, 'strategy': 'noauth', 'tenant': None, 'username': None},
-                  glance_url = None, token = None, name = 'Factory Test Image', disk_format = 'raw'):
+                  glance_url = None, token = None, name = 'Factory Test Image', disk_format = 'raw', properties = { } ):
 
     k = keystone_client.Client(username=creds['username'], password=creds['password'], tenant_name=creds['tenant'], auth_url=creds['auth_url'])
 
     if (k.authenticate()):
         #Connect to glance to upload the image
         glance = glance_client.Client("1", endpoint=glance_url, token=k.auth_token)
-        image_meta = {'container_format': 'bare',
+        if disk_format in ['aki', 'ari']:
+            container_format = disk_format
+        else:
+            container_format = 'bare'
+
+        image_meta = {'container_format': container_format,
          'disk_format': disk_format,
          'is_public': True,
          'min_disk': 0,
          'min_ram': 0,
          'name': name,
-         'properties': {'distro': 'rhel'}}
+         'properties': properties }
         try:
             image = glance.images.create(name=name)
             if image_filename:
@@ -167,6 +172,24 @@ def glance_upload(image_filename = None, image_url = None, creds = {'auth_url': 
             raise
     else:
         raise Exception("Unable to authenticate into glance")
+
+def glance_get_image(image_id, creds =  {'auth_url': None, 'password': None, 'strategy': 'noauth', 'tenant': None, 'username': None},
+                     glance_url = None, token = None):
+
+    k = keystone_client.Client(username=creds['username'], password=creds['password'], tenant_name=creds['tenant'], auth_url=creds['auth_url'])
+
+    if (k.authenticate()):
+        #Connect to glance to upload the image
+        glance = glance_client.Client("1", endpoint=glance_url, token=k.auth_token)
+        image = glance.images.get( image_id )
+        if image:
+            return image
+        else:
+            raise Exception("Unable to get image")
+    else:
+        raise Exception("Unable to authenticate into keystone")
+
+
 
 def volume_from_image(image_id, creds, glance_url, volume_size = None):
     k = keystone_client.Client(username=creds['username'], password=creds['password'], tenant_name=creds['tenant'], auth_url=creds['auth_url'])
@@ -393,7 +416,7 @@ def generate_blank_syslinux():
         #os.remove(raw_image_name)
 
 
-def generate_boot_content(url, dest_dir, distro, create_volume):
+def generate_boot_content(url, dest_dir, distro, create_volume, syslinux = True):
     """
     Insert kernel, ramdisk and syslinux.cfg file in dest_dir
     source from url
@@ -419,17 +442,58 @@ def generate_boot_content(url, dest_dir, distro, create_volume):
     initrd_dest = os.path.join(dest_dir,"initrd.img")
     http_download_file(initrd_url, initrd_dest)
 
-    syslinux_conf="""default customhd
+    if syslinux:
+	syslinux_conf="""default customhd
 timeout 30
 prompt 1
 label customhd
   kernel vmlinuz
   append initrd=initrd.img %s
 """ % (cmdline)
-    
-    f = open(os.path.join(dest_dir, "syslinux.cfg"),"w")
-    f.write(syslinux_conf)
-    f.close()
+	
+	f = open(os.path.join(dest_dir, "syslinux.cfg"),"w")
+	f.write(syslinux_conf)
+	f.close()
+
+    return (kernel_dest, initrd_dest, cmdline)
+
+
+def generate_direct_boot_image(kernel_file, initrd_file, cmdline, install_disk_size, install_image_file, creds, glance_url):
+    # Directly upload initrd and kernel as ARI and AKI images
+    # Create blank disk, upload it with metadata needed to boot AKI and ARI with cmdline
+    print "Generating Glance AKI from file: %s" % (kernel_file)
+    kernel_image = glance_upload(image_filename = kernel_file, image_url = None,
+                    creds = creds, glance_url = glance_url, name = os.path.basename(kernel_file),
+                    disk_format='aki')
+
+    print "Generating Glance ARI from file: %s" % (kernel_file)
+    initrd_image = glance_upload(image_filename = initrd_file, image_url = None,
+                    creds = creds, glance_url = glance_url, name = os.path.basename(initrd_file),
+                    disk_format='ari')
+
+    try:
+        subprocess_check_output(["qemu-img","create","-f","qcow2",install_image_file,str(install_disk_size)+"G"])
+    except:
+        print "Exception while creating empty qcow2 image for upload"
+
+    properties = {'command_line': cmdline,
+                    'ramdisk_id': str(initrd_image.id),
+                    'kernel_id': str(kernel_image.id)}
+
+    install_image = glance_upload(image_filename = install_image_file, image_url = None,
+                     creds = creds, glance_url = glance_url, name = os.path.basename(kernel_file) +
+                     "-" + os.path.basename(initrd_file), disk_format='qcow2', properties = properties)
+
+    return install_image
+
+def remove_direct_boot_data(finished_image_id, creds, glance_url):
+    image = glance_get_image(finished_image_id, creds, glance_url)
+    properties = image.properties
+    for key in [ 'kernel_id', 'ramdisk_id', 'command_line' ]:
+        if key in properties:
+            del properties[key]
+    meta = {'properties':properties}
+    image.update(**meta) 
 
 
 def copy_content_to_image(contentdir, target_image):
