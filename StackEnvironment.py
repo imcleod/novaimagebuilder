@@ -48,7 +48,6 @@ class StackEnvironment(Singleton):
         except:
             self.cinder = None
 
-
     def __init__(self, username, password, tenant, auth_url):
         pass
 
@@ -75,7 +74,14 @@ class StackEnvironment(Singleton):
                 raise e
         
         image = self.glance.images.create(name=name)
+        print 'Started uploading to Glance'
         image.update(**image_meta)
+        while image.status != 'active':
+            image = self.glance.images.get(image.id)
+            if image.status == 'error':
+                raise Exception('Error uploading image to Glance.')
+            sleep(1)
+        print 'Finished uploading to Glance'
         return image.id
 
     def upload_volume_to_cinder(self, name, volume_size=None, local_path=None, location=None, format='raw', container_format='bare', is_public=True, keep_image=True):
@@ -90,14 +96,27 @@ class StackEnvironment(Singleton):
     def create_volume_from_image(self, image_id, volume_size=None):
         return self._migrate_from_glance_to_cinder(image_id, volume_size)
 
+    def delete_image(self, image_id):
+        self.glance.images.get(image_id).delete()
+
+    def delete_volume(self, volume_id):
+        self.cinder.volumes.get(volume_id).delete()
+
     def _migrate_from_glance_to_cinder(self, image_id, volume_size):
         image = self.glance.images.get(image_id)
         if not volume_size:
         # Gigabytes rounded up
             volume_size = int(image.size/(1024*1024*1024)+1)
 
-        print "Starting asyncronous copying to Cinder"
+        print 'Started copying to Cinder'
         volume = self.cinder.volumes.create(volume_size, display_name=image.name, imageRef=image.id)
+        while volume.status != 'available':
+            volume = self.cinder.volumes.get(volume.id)
+            if volume.status == 'error':
+                volume.delete()
+                raise Exception('Error occured copying glance image %s to volume %s' % (image_id, volume.id))
+            sleep(1)
+        print 'Finished copying to Cinder'
         return volume.id
 
     def get_volume_status(self, volume_id):
@@ -124,4 +143,4 @@ class StackEnvironment(Singleton):
     def is_floppy(self):
         #TODO: check if floppy is available.  
         pass
- 
+
