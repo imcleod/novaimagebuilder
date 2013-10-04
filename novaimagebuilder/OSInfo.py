@@ -72,8 +72,8 @@ class OSInfo(object):
         @param os Either the shortid or id for an OS (str)
 
         @param configuration A dict of install script customizations with the following keys:
-            license (optional, default: None)
             admin_password (required)
+            license (optional, default: None)
             target_disk (optional, default: None)
             script_disk (optional, default: None)
             preinstall_disk (optional, default: None)
