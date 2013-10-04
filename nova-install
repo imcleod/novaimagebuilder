@@ -19,7 +19,7 @@ import logging
 import sys
 import signal
 import argparse
-from Singleton import Singleton
+from novaimagebuilder.Singleton import Singleton
 from gi.repository import Libosinfo as osinfo
 
 
