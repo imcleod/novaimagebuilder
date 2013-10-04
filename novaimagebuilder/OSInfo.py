@@ -52,16 +52,19 @@ class OSInfo(object):
         """
         os = self.os_id_for_shortid(shortid)
 
-        return {'name': os.get_name(),
-                'version': os.get_version(),
-                'distro': os.get_distro(),
-                'family': os.get_family(),
-                'shortid': os.get_short_id(),
-                'id': os.get_id(),
-                'media_list': os.get_media_list().get_elements(),
-                'tree_list': os.get_tree_list().get_elements(),
-                'minimum_resources': os.get_minimum_resources().get_elements(),
-                'recommended_resources': os.get_recommended_resources().get_elements()}
+        if os:
+            return {'name': os.get_name(),
+                    'version': os.get_version(),
+                    'distro': os.get_distro(),
+                    'family': os.get_family(),
+                    'shortid': os.get_short_id(),
+                    'id': os.get_id(),
+                    'media_list': os.get_media_list().get_elements(),
+                    'tree_list': os.get_tree_list().get_elements(),
+                    'minimum_resources': os.get_minimum_resources().get_elements(),
+                    'recommended_resources': os.get_recommended_resources().get_elements()}
+        else:
+            return None
 
     def os_for_iso(self, iso):
         """
@@ -127,7 +130,48 @@ class OSInfo(object):
 
         @return install script as a str
         """
-        pass
+        if not osid.startswith('http'):
+            osid = self.os_id_for_shortid(osid)
+
+        os = self.db.get_os(osid)
+
+        if os:
+            script = None
+
+            # TODO: This seems to be broken. Need to file a bug.
+            #script = os.find_install_script(profile)
+            # TODO: remove this once find_install_script() is fixed
+            script_list = os.get_install_script_list().get_elements()
+            for a_script in script_list:
+                if a_script.get_profile() == profile:
+                    script = a_script
+
+            config = osinfo.InstallConfig()
+            config.set_admin_password(configuration['admin_password'])
+            if configuration.get('license'):
+                config.set_product_key(configuration['license'])
+            if configuration.get('target_disk'):
+                config.set_target_disk(configuration['target_disk'])
+            if configuration.get('script_dis'):
+                config.set_script_disk(configuration['script_disk'])
+            if configuration.get('preinstall_disk'):
+                config.set_pre_install_drivers_disk(configuration['preinstall_disk'])
+            if configuration.get('postinstall_disk'):
+                config.set_post_install_drivers_disk(configuration['postinstall_disk'])
+            if configuration.get('signed_drivers'):
+                config.set_driver_signing(configuration['signed_drivers'])
+            if configuration.get('keyboard'):
+                config.set_l10n_keyboard(configuration['keyboard'])
+            if configuration.get('language'):
+                config.set_l10n_language(configuration['language'])
+            if configuration.get('timezone'):
+                config.set_l10n_timezone(configuration['timezone'])
+
+            return script.generate(os, config, Gio.Cancellable())
+
+        else:
+            return None
+
 
     def os_ids(self, distros=None):
         """
