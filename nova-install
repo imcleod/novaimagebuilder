@@ -1,0 +1,135 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+#   Copyright 2013 Red Hat, Inc.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+import logging
+import sys
+import signal
+import argparse
+from Singleton import Singleton
+from gi.repository import Libosinfo as osinfo
+
+
+class Arguments(Singleton):
+    def _singleton_init(self, *args, **kwargs):
+        super(Arguments, self)._singleton_init()
+        self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
+        self.argparser = self._argparser_setup()
+        self.args = self.argparser.parse_args()
+
+    def _argparser_setup(self):
+        app_name = sys.argv[0].rpartition('/')[2]
+        description_text = """Creates a new VM image in Nova using an OS's native installation tools."""
+
+        argparser = argparse.ArgumentParser(description=description_text, prog=app_name)
+
+        install_location_group = argparser.add_mutually_exclusive_group()
+        install_location_group.add_argument('--install_iso', help='Location of the installation media ISO.')
+        install_location_group.add_argument('--install_tree', help='Location of an installation file tree.')
+
+        argparser.add_argument('--os', help='The shortid of an OS.')
+        argparser.add_argument('--os_list', action='store_true', default=False,
+                               help='Show the OS list available for image building.')
+
+        argparser.add_argument('--install_script', type=argparse.FileType(),
+                               help='Custom install script file to use instead of generating one.')
+        argparser.add_argument('--admin_pw', help='The password to set for the admin user in the image.')
+        argparser.add_argument('--license_key', help='License/product key to use if needed.')
+        argparser.add_argument('--disk_size', type=int, default=10,
+                               help='Size of the image root disk in gigabytes. (default: %(default)s)')
+        argparser.add_argument('--instance_flavor', default='vanilla',
+                               help='The type of instance to use for building the image. (default: %(default)s)')
+        argparser.add_argument('--name', help='A name to assign to the built image.')
+
+        argparser.add_argument('--image_storage', choices=('glance', 'cinder', 'both'), default='glance',
+                               help='Where to store the final image: glance, cinder, both (default: %(default)s)')
+
+        argparser.add_argument('--debug', action='store_true', default=False,
+                               help='Print debugging output to the logfile. (default: %(default)s)')
+
+        return argparser
+
+
+class Application(Singleton):
+    def _singleton_init(self, *args, **kwargs):
+        super(Application, self)._singleton_init()
+        self.arguments = Arguments().args
+        self.log = self._logger(debug=self.arguments.debug)
+        if not self.log:
+            print 'No logger!!! stopping...'
+            sys.exit(1)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        self.osinfo_db = self._osinfo_db()
+
+    def _logger(self, debug=False):
+        logger = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
+        #current_handler = logger.handlers[0]
+        filehandler = logging.FileHandler('/var/log/%s' % sys.argv[0].rpartition('/')[2])
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
+        filehandler.setFormatter(formatter)
+        logger.addHandler(filehandler)
+        #logger.removeHandler(current_handler)
+        if debug:
+            logger.setLevel(logging.DEBUG)
+        return logger
+
+    def signal_handler(self, signum, stack):
+        if signum == signal.SIGTERM:
+            logging.warning('caught signal SIGTERM, stopping...')
+            # Add steps to cleanly shutdown the process here #
+            sys.exit(0)
+
+    def _osinfo_db(self, path='/usr/share/libosinfo/db'):
+        loader = osinfo.Loader()
+        loader.process_path(path)
+        return loader.get_db()
+
+    def main(self):
+        if self.arguments.install_iso:
+            self.log.debug('Install from ISO? (%s)' % self.arguments.install_iso)
+            Arguments().argparser.parse_args(['--help'])
+        elif self.arguments.install_tree:
+            self.log.debug('Install from tree? (%s)' % self.arguments.install_tree)
+            Arguments().argparser.parse_args(['--help'])
+        elif self.arguments.os:
+            self.log.debug('Build a %s image?' % self.arguments.os)
+            Arguments().argparser.parse_args(['--help'])
+        elif self.arguments.os_list:
+            os_dict = {}
+            # possible distro values from libosinfo for reference:
+            # 'osx', 'openbsd', 'centos', 'win', 'mandrake', 'sled', 'sles', 'netbsd', 'winnt', 'fedora', 'solaris',
+            # 'rhel', 'opensuse', 'rhl', 'mes', 'ubuntu', 'debian', 'netware', 'msdos', 'gnome', 'opensolaris',
+            # 'freebsd', 'mandriva'
+            for os in self.osinfo_db.get_os_list().get_elements():
+                distro = os.get_distro()
+                # Just compare major release version numbers. ex. 2.2.9 becomes 2
+                version = int(os.get_version().split('.')[0])
+                if ((distro == 'fedora' and version >= 17) or
+                        (distro == 'rhel' and version >= 5) or
+                        (distro == 'ubuntu' and version >= 12) or
+                        (distro == 'win' and version >= 6)):
+                    os_dict[os.get_short_id()] = os
+
+            for shortid in sorted(os_dict):
+                print '%s - %s' % (shortid, os_dict[shortid].get_name())
+
+        else:
+            self.log.debug('Nothing to do...')
+            Arguments().argparser.parse_args(['--help'])
+
+
+if __name__ == '__main__':
+    sys.exit(Application().main())
