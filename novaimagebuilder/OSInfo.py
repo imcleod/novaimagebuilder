@@ -65,18 +65,15 @@ class OSInfo(object):
         """
         pass
 
-    def install_script(self, os, type='jeos', configuration=None):
+    def install_script(self, os, configuration, type='jeos'):
         """
         Get an install script for a given OS.
 
         @param os Either the shortid or id for an OS (str)
 
-        @param type The type or profile of the install. (str) 'jeos', 'desktop', etc
-
         @param configuration A dict of install script customizations with the following keys:
             license (optional, default: None)
             admin_password (required)
-            arch (optional, default: 'x86_64')
             target_disk (optional, default: None)
             script_disk (optional, default: None)
             preinstall_disk (optional, default: None)
@@ -85,6 +82,8 @@ class OSInfo(object):
             keyboard (optional, default: 'en_US')
             language (optional, default: 'en_US')
             timezone (optional, default: 'America/New_York')
+
+        @param type The type or profile of the install. (str) 'jeos', 'desktop', etc
 
         @return install script as a str
         """
