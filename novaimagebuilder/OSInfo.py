@@ -27,6 +27,11 @@ class OSInfo(object):
         loader.process_path(path)
         self.db = loader.get_db()
 
+    def os_id_for_shortid(self, shortid):
+        for an_os in self.db.get_os_list().get_elements():
+            if an_os.get_short_id() == shortid:
+                return an_os
+
     def os_for_shortid(self, shortid):
         """
         Given the shortid for an OS, get information about that OS.
@@ -45,7 +50,8 @@ class OSInfo(object):
             minimum_resources (list of libosinfo.Resources objects)
             recommended_resources (list of libosinfo.Resources objects)
         """
-        os = self.db.get_os(shortid)
+        os = self.os_id_for_shortid(shortid)
+
         return {'name': os.get_name(),
                 'version': os.get_version(),
                 'distro': os.get_distro(),
