@@ -42,7 +42,6 @@ class OSInfo(object):
             tree_list
             minimum_resources
             recommended_resources
-            install_script
         """
         pass
 
@@ -63,17 +62,29 @@ class OSInfo(object):
             tree_list
             minimum_resources
             recommended_resources
-            install_script
         """
         pass
 
-    def install_script(self, os, type='jeos'):
+    def install_script(self, os, type='jeos', configuration=None):
         """
         Get an install script for a given OS.
 
         @param os Either the shortid or id for an OS (str)
 
         @param type The type or profile of the install. (str) 'jeos', 'desktop', etc
+
+        @param configuration A dict of install script customizations with the following keys:
+            license (optional, default: None)
+            admin_password (required)
+            arch (optional, default: 'x86_64')
+            target_disk (optional, default: None)
+            script_disk (optional, default: None)
+            preinstall_disk (optional, default: None)
+            postinstall_disk (optional, default: None)
+            signed_drivers (optional, default: True)
+            keyboard (optional, default: 'en_US')
+            language (optional, default: 'en_US')
+            timezone (optional, default: 'America/New_York')
 
         @return install script as a str
         """
