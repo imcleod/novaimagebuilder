@@ -27,6 +27,36 @@ class OSInfo(object):
         loader.process_path(path)
         self.db = loader.get_db()
 
+    def os_for_shortid(self, shortid):
+        """
+        Given the shortid for an OS, get information about that OS.
+
+        @param shortid A str id for an OS such as rhel5
+
+        @return dict with keys:
+            name (str)
+            version (str)
+            distro (str)
+            family (str)
+            shortid (str)
+            id (str)
+            media_list (list of libosinfo.Media objects)
+            tree_list (list of libosinfo.Tree objects)
+            minimum_resources (list of libosinfo.Resources objects)
+            recommended_resources (list of libosinfo.Resources objects)
+        """
+        os = self.db.get_os(shortid)
+        return {'name': os.get_name(),
+                'version': os.get_version(),
+                'distro': os.get_distro(),
+                'family': os.get_family(),
+                'shortid': os.get_short_id(),
+                'id': os.get_id(),
+                'media_list': os.get_media_list().get_elements(),
+                'tree_list': os.get_tree_list().get_elements(),
+                'minimum_resources': os.get_minimum_resources().get_elements(),
+                'recommended_resources': os.get_recommended_resources().get_elements()}
+
     def os_for_iso(self, iso):
         """
         Given an install ISO, get information about the OS.
@@ -45,7 +75,8 @@ class OSInfo(object):
             minimum_resources
             recommended_resources
         """
-        pass
+        media = osinfo.Media().create_from_location(iso)
+        return self.os_for_shortid(media.get_os().get_shortid())
 
     def os_for_tree(self, tree):
         """
@@ -65,7 +96,8 @@ class OSInfo(object):
             minimum_resources
             recommended_resources
         """
-        pass
+        install_tree = osinfo.Media().create_from_location(tree)
+        return self.os_for_shortid(install_tree.get_os().get_shortid())
 
     def install_script(self, osid, configuration, profile='jeos'):
         """
