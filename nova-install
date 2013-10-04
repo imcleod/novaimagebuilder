@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# encoding: utf-8
+# coding=utf-8
 
 #   Copyright 2013 Red Hat, Inc.
 #
@@ -20,8 +20,7 @@ import sys
 import signal
 import argparse
 from novaimagebuilder.Singleton import Singleton
-from gi.repository import Libosinfo as osinfo
-
+from novaimagebuilder.OSInfo import OSInfo
 
 class Arguments(Singleton):
     def _singleton_init(self, *args, **kwargs):
@@ -72,7 +71,7 @@ class Application(Singleton):
             print 'No logger!!! stopping...'
             sys.exit(1)
         signal.signal(signal.SIGTERM, self.signal_handler)
-        self.osinfo_db = self._osinfo_db()
+        self.osinfo = OSInfo()
 
     def _logger(self, debug=False):
         logger = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
@@ -92,11 +91,6 @@ class Application(Singleton):
             # Add steps to cleanly shutdown the process here #
             sys.exit(0)
 
-    def _osinfo_db(self, path='/usr/share/libosinfo/db'):
-        loader = osinfo.Loader()
-        loader.process_path(path)
-        return loader.get_db()
-
     def main(self):
         if self.arguments.install_iso:
             self.log.debug('Install from ISO? (%s)' % self.arguments.install_iso)
@@ -108,23 +102,15 @@ class Application(Singleton):
             self.log.debug('Build a %s image?' % self.arguments.os)
             Arguments().argparser.parse_args(['--help'])
         elif self.arguments.os_list:
-            os_dict = {}
             # possible distro values from libosinfo for reference:
             # 'osx', 'openbsd', 'centos', 'win', 'mandrake', 'sled', 'sles', 'netbsd', 'winnt', 'fedora', 'solaris',
             # 'rhel', 'opensuse', 'rhl', 'mes', 'ubuntu', 'debian', 'netware', 'msdos', 'gnome', 'opensolaris',
             # 'freebsd', 'mandriva'
-            for os in self.osinfo_db.get_os_list().get_elements():
-                distro = os.get_distro()
-                # Just compare major release version numbers. ex. 2.2.9 becomes 2
-                version = int(os.get_version().split('.')[0])
-                if ((distro == 'fedora' and version >= 17) or
-                        (distro == 'rhel' and version >= 5) or
-                        (distro == 'ubuntu' and version >= 12) or
-                        (distro == 'win' and version >= 6)):
-                    os_dict[os.get_short_id()] = os
 
-            for shortid in sorted(os_dict):
-                print '%s - %s' % (shortid, os_dict[shortid].get_name())
+            os_dict = self.osinfo.os_ids(distros={'fedora': 17, 'rhel': 5, 'ubuntu': 12, 'win': 6})
+            if len(os_dict) > 0:
+                for os in sorted(os_dict.keys()):
+                    print '%s - %s' % (os, os_dict[os])
 
         else:
             self.log.debug('Nothing to do...')

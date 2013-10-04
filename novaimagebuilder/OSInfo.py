@@ -1,3 +1,5 @@
+# coding=utf-8
+
 #   Copyright 2013 Red Hat, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,11 +67,11 @@ class OSInfo(object):
         """
         pass
 
-    def install_script(self, os, configuration, type='jeos'):
+    def install_script(self, osid, configuration, profile='jeos'):
         """
         Get an install script for a given OS.
 
-        @param os Either the shortid or id for an OS (str)
+        @param osid Either the shortid or id for an OS (str)
 
         @param configuration A dict of install script customizations with the following keys:
             admin_password (required)
@@ -83,19 +85,30 @@ class OSInfo(object):
             language (optional, default: 'en_US')
             timezone (optional, default: 'America/New_York')
 
-        @param type The type or profile of the install. (str) 'jeos', 'desktop', etc
+        @param profile The profile of the install. (str) 'jeos', 'desktop', etc
 
         @return install script as a str
         """
         pass
 
-    def os_list(self, filter=None):
+    def os_ids(self, distros=None):
         """
         List the operating systems available from libosinfo.
 
-        @param filter A dict with keys being distro names and the values being the lowest version to list.
+        @param distros A dict with keys being distro names and the values being the lowest version to list.
             Ex. {'fedora': 17, 'rhel': 5, 'ubuntu':12, 'win':6}
 
-        @return A sorted dict with keys being OS shortid and values being OS name
+        @return A dict with keys being OS shortid and values being OS name
         """
-        pass
+        os_dict = {}
+        for os in self.db.get_os_list().get_elements():
+            if distros:
+                distro = os.get_distro()
+                version = int(os.get_version().split('.')[0])  # Just compare major versions, ie 2 instead of 2.2.8
+                for a_distro in distros:
+                    if a_distro == distro and version >= distros[a_distro]:
+                        os_dict[os.get_short_id()] = os.get_name()
+            else:
+               os_dict[os.get_short_id()] = os.get_name()
+
+        return os_dict
