@@ -127,6 +127,71 @@ class StackEnvironment(Singleton):
         image = self.glance.images.get(image_id)
         return image.status
 
+    def launch_instance(self, root_disk=None, install_iso=None, secondary_iso=None, floppy=None, aki=None, ari=None, cmdline=None, userdata=None):
+        #blank root disk with ISO, ISO2 and Floppy - Windows
+        if install_iso and secondary_iso and floppy:
+            if install_iso[0] == 'cinder':
+                install_iso_id = install_iso[1]
+            else:
+                install_iso_id = self.create_volume_from_image(install_iso[1])
+
+            if secondary_iso[0] == 'cinder':
+                secondary_iso_id = secondary_iso[1]
+            else:
+                secondary_iso_id = self.create_volume_from_image(secondary_iso[1])
+
+            if floppy[0] == 'cinder':
+                floppy_id = floppy[1]
+            else:
+                floppy_id = self.create_volume_from_image(floppy[1])
+            #use an already stored blank disk for windows installs
+            return self._launch_windows_install('ebbba695-4d30-4651-be2c-730c96654e0a', install_iso_id, secondary_iso_id, floppy_id)
+
+        #blank root disk with ISO, aki, ari and cmdline
+        if (not install_iso) and aki and ari and cmdline and userdata:
+            #this is a blank image that has 'ramdisk_id', 'kernel_id', and 'command_line' properties 
+            #for fedora 18
+            return self._launch_direct_boot("8b51c3dd-c6ff-4c72-9f44-86ed0de03cbb", userdata)
+
+
+    def _launch_direct_boot(self, root_disk, userdata):
+        image = self.glance.images.get(root_disk)
+        self.nova.servers.create("direct-boot-linux", image, "2", userdata=userdata)
+    
+    def _launch_windows_install(self, root_disk, install_cdrom, drivers_cdrom, autounattend_floppy):
+
+        block_device_mapping_v2 = [
+                     {"source_type": "volume",
+                     "destination_type": "volume",
+                     "uuid": install_cdrom,
+                     "boot_index": "1",
+                     "device_type": "cdrom",
+                     "disk_bus": "ide",
+                    },
+                    {"source_type": "volume",
+                     "destination_type": "volume",
+                     "uuid": drivers_cdrom,
+                     "boot_index": "3",
+                     "device_type": "cdrom",
+                     "disk_bus": "ide",
+                    },
+                    {"source_type": "volume",
+                     "destination_type": "volume",
+                     "uuid": autounattend_floppy,
+                     "boot_index": "2",
+                     "device_type": "floppy",
+                    },
+                    ]
+
+
+        try:
+            image = self.glance.images.get(root_disk)
+            instance = self.nova.servers.create("windows-volume-backed", image, "2", meta={}, block_device_mapping_v2 = block_device_mapping_v2)
+            return instance.id
+        except Exception, e:
+            print "Error has occured: %s" % e.message
+
+
     def is_cinder(self):
         if not self.cinder:
             return False
