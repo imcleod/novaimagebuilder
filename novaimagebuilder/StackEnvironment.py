@@ -190,7 +190,7 @@ class StackEnvironment(Singleton):
             block_device_mapping_v2 = [
                      {"source_type": "volume",
                      "destination_type": "volume",
-                     "uuid": install_cdrom,
+                     "uuid": install_iso,
                      "boot_index": "1",
                      "device_type": "cdrom",
                      "disk_bus": "ide",
