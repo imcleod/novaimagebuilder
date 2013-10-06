@@ -21,7 +21,8 @@ from cinderclient import client as cinder_client
 from Singleton import Singleton
 from time import sleep
 from novaclient.v1_1.contrib.list_extensions import ListExtManager
-import thread
+import os
+from NovaInstance import NovaInstance
 
 class StackEnvironment(Singleton):
 
@@ -63,8 +64,8 @@ class StackEnvironment(Singleton):
     def cinder_server(self):
         return self.cinder
 
-    def upload_image_to_glance(self, name, local_path=None, location=None, format='raw', min_disk=0, min_ram=0, container_format='bare', is_public=True):
-        image_meta = {'container_format': container_format, 'disk_format': format, 'is_public': is_public, 'min_disk': min_disk, 'min_ram': min_ram, 'name': name}
+    def upload_image_to_glance(self, name, local_path=None, location=None, format='raw', min_disk=0, min_ram=0, container_format='bare', is_public=True, properties={}):
+        image_meta = {'container_format': container_format, 'disk_format': format, 'is_public': is_public, 'min_disk': min_disk, 'min_ram': min_ram, 'name': name, 'properties': properties}
         try:
             image_meta['data'] = open(local_path, "r")
         except Exception, e:
@@ -127,7 +128,37 @@ class StackEnvironment(Singleton):
         image = self.glance.images.get(image_id)
         return image.status
 
+    def _create_blank_image(self, size):
+        rc = os.system("qemu-img create -f qcow2 blank_image.tmp %dG" % size)
+        if rc == 0:
+            return
+        else:
+            raise Exception("Unable to create blank image")
+
+
+    def _remove_blank_image(self):
+        rc = os.system("rm blank_image.tmp")
+        if rc == 0:
+            return
+        else:
+            raise Exception("Unable to create blank image")
+
     def launch_instance(self, root_disk=None, install_iso=None, secondary_iso=None, floppy=None, aki=None, ari=None, cmdline=None, userdata=None):
+        if root_disk:
+            #if root disk needs to be created
+            if root_disk[0] == 'blank':
+                root_disk_size = root_disk[1]
+                #Create a blank qcow2 image and uploads it
+                self._create_blank_image(root_disk_size)
+                if aki and ari and cmdline:
+                    root_disk_properties = {'kernel_id': aki, 'ramdisk_id': ari, 'command_line': cmdline}
+                else:
+                    root_disk_properties = {}
+                root_disk_image_id = self.upload_image_to_glance('blank %dG disk' % root_disk_size, local_path='./blank_image.tmp', format='qcow2', properties=root_disk_properties)
+                self._remove_blank_image()
+            elif root_disk[0] == 'glance':
+                root_disk_image_id = root_disk[1]
+
         #blank root disk with ISO, ISO2 and Floppy - Windows
         if install_iso and secondary_iso and floppy:
             if install_iso[0] == 'cinder':
@@ -144,19 +175,32 @@ class StackEnvironment(Singleton):
                 floppy_id = floppy[1]
             else:
                 floppy_id = self.create_volume_from_image(floppy[1])
-            #use an already stored blank disk for windows installs
-            return self._launch_windows_install('ebbba695-4d30-4651-be2c-730c96654e0a', install_iso_id, secondary_iso_id, floppy_id)
+            instance = self._launch_windows_install(root_disk_image_id, install_iso_id, secondary_iso_id, floppy_id)
+            return NovaInstance(instance, self)
 
-        #blank root disk with ISO, aki, ari and cmdline
-        if (not install_iso) and aki and ari and cmdline and userdata:
-            #this is a blank image that has 'ramdisk_id', 'kernel_id', and 'command_line' properties 
-            #for fedora 18
-            return self._launch_direct_boot("8b51c3dd-c6ff-4c72-9f44-86ed0de03cbb", userdata)
+        #blank root disk with aki, ari and cmdline. install iso is optional.
+        if aki and ari and cmdline and userdata:
+            instance_id = self._launch_direct_boot(root_disk_image_id, userdata, install_iso=install_iso)
+            return NovaInstance(instance_id, self)
 
-
-    def _launch_direct_boot(self, root_disk, userdata):
+    def _launch_direct_boot(self, root_disk, userdata, install_iso=None):
         image = self.glance.images.get(root_disk)
-        self.nova.servers.create("direct-boot-linux", image, "2", userdata=userdata)
+        if install_iso:
+            #assume that install iso is already a cinder volume
+            block_device_mapping_v2 = [
+                     {"source_type": "volume",
+                     "destination_type": "volume",
+                     "uuid": install_cdrom,
+                     "boot_index": "1",
+                     "device_type": "cdrom",
+                     "disk_bus": "ide",
+                    },
+                    ]
+        else:
+           #must be a network install
+           block_device_mapping_v2 = None
+        instance = self.nova.servers.create("direct-boot-linux", image, "2", block_device_mapping_v2=block_device_mapping_v2, userdata=userdata)
+        return instance
     
     def _launch_windows_install(self, root_disk, install_cdrom, drivers_cdrom, autounattend_floppy):
 
@@ -183,14 +227,12 @@ class StackEnvironment(Singleton):
                     },
                     ]
 
-
         try:
             image = self.glance.images.get(root_disk)
             instance = self.nova.servers.create("windows-volume-backed", image, "2", meta={}, block_device_mapping_v2 = block_device_mapping_v2)
-            return instance.id
+            return instance
         except Exception, e:
             print "Error has occured: %s" % e.message
-
 
     def is_cinder(self):
         if not self.cinder:
@@ -207,5 +249,5 @@ class StackEnvironment(Singleton):
 
     def is_floppy(self):
         #TODO: check if floppy is available.  
-        pass
+        return True
 
