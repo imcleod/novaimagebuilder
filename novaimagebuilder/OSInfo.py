@@ -30,7 +30,7 @@ class OSInfo(object):
     def os_id_for_shortid(self, shortid):
         for an_os in self.db.get_os_list().get_elements():
             if an_os.get_short_id() == shortid:
-                return an_os
+                return an_os.get_id()
 
     def os_for_shortid(self, shortid):
         """
