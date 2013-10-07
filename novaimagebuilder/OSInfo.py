@@ -50,7 +50,7 @@ class OSInfo(object):
             minimum_resources (list of libosinfo.Resources objects)
             recommended_resources (list of libosinfo.Resources objects)
         """
-        os = self.os_id_for_shortid(shortid)
+        os = self.db.get_os(self.os_id_for_shortid(shortid))
 
         if os:
             return {'name': os.get_name(),
