@@ -19,6 +19,7 @@ import json
 import os.path
 import pycurl
 from Singleton import Singleton
+from StackEnvironment import StackEnvironment
 
 
 class CacheManager(Singleton):
@@ -40,8 +41,8 @@ class CacheManager(Singleton):
     #INDEX_LOCK = lock()
     INDEX_FILE = "_cache_index"
 
-    def __init__(self, openstack_env):
-        self.env = openstack_env
+    def _singleton_init(self):
+        self.env = StackEnvironment()
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         self.index_filename = self.CACHE_ROOT + self.INDEX_FILE
         if not os.path.isfile(self.index_filename):
