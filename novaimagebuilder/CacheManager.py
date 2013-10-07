@@ -18,6 +18,7 @@ import logging
 import json
 import os.path
 import pycurl
+import guestfs
 from Singleton import Singleton
 from StackEnvironment import StackEnvironment
 
@@ -132,22 +133,59 @@ class CacheManager(Singleton):
         # TODO: If not save_local and the plugin doesn't need the iso, direct download in glance
         object_name = os_plugin.os_ver_arch() + "-" + object_type
         local_object_filename = self.CACHE_ROOT + object_name
-        self._http_download_file(source_url, local_object_filename)
-        if os_plugin.wants_iso():
-            self.log.debug("The plugin wants to do something with the ISO - do it here")
-        
-        if self.env.is_cinder():
-            (glance_id, cinder_id) = self.env.upload_volume_to_cinder(object_name, local_path=local_object_filename)
+        if not os.path.isfile(local_object_filename):
+            self._http_download_file(source_url, local_object_filename)
         else:
-            cinder_id = None
-            glance_id = self.env.upload_image_to_glance(object_name, local_path=local_object_filename)
+            self.log.warning("Local file (%s) is already present - assuming it is valid" % (local_object_filename) )
 
-        self.lock_and_get_index()
+        if object_type == "install-iso" and os_plugin.wants_iso_content():
+            self.log.debug("The plugin wants to do something with the ISO - extracting stuff now")
+            icd = os_plugin.iso_content_dict()
+            if icd:
+                self.log.debug("Launching guestfs") 
+		g = guestfs.GuestFS()
+		g.add_drive_ro(local_object_filename)
+		g.launch()
+		g.mount_options ("", "/dev/sda", "/")
+                for nested_obj_type in icd.keys():
+                    nested_obj_name = os_plugin.os_ver_arch() + "-" + nested_obj_type
+                    nested_object_filename = self.CACHE_ROOT + nested_obj_name
+                    self.log.debug("Downloading ISO file (%s) to local file (%s)" % (icd[nested_obj_type],nested_object_filename) )
+		    g.download(icd[nested_obj_type],nested_object_filename)
+                    if nested_obj_type == "install-iso-kernel":
+                        image_format = "aki"
+                    elif nested_obj_type == "install-iso-initrd":
+                        image_format = "ari"
+                    else:
+                        raise Exception("Nested object of unknown type requested")
+                    (glance_id, cinder_id) = self._do_remote_uploads(nested_obj_name, nested_object_filename, 
+                                                                     format = image_format, container_format = image_format,
+                                                                     use_cinder = False)
+                    locations = { "local": nested_object_filename, "glance": str(glance_id), "cinder": str(cinder_id) }
+                    self._do_index_updates(os_plugin.os_ver_arch(), object_type, locations)
+		g.shutdown()
+		g.close()
+
+        (glance_id, cinder_id) = self._do_remote_uploads(object_name, local_object_filename)
         locations =  { "local": local_object_filename, "glance": str(glance_id), "cinder": str(cinder_id) }
-        self._set_index_value(os_plugin.os_ver_arch(), object_type, None, locations )
-        self.write_index_and_unlock()
+        self._do_index_updates(os_plugin.os_ver_arch(), object_type, locations)
 
         return locations
+
+    def _do_index_updates(self, os_ver_arch, object_type, locations):
+        self.lock_and_get_index()
+        self._set_index_value(os_ver_arch, object_type, None, locations )
+        self.write_index_and_unlock()
+
+    def _do_remote_uploads(self, object_name, local_object_filename, format='raw', container_format = 'bare', use_cinder=True):
+        if self.env.is_cinder() and use_cinder:
+            (glance_id, cinder_id) = self.env.upload_volume_to_cinder(object_name, local_path=local_object_filename, 
+                                                                      format = format, container_format = container_format)
+        else:
+            cinder_id = None
+            glance_id = self.env.upload_image_to_glance(object_name, local_path=local_object_filename,
+                                                        format = format, container_format = container_format)
+        return (glance_id, cinder_id)
 
     def _http_download_file(self, url, filename):
 	"""

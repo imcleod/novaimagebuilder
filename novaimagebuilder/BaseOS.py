@@ -30,6 +30,9 @@ class BaseOS(object):
         # Subclasses can pull in the above and then do OS specific tasks to fill in missing
         # information and determine if the resulting install is possible
 
+    def os_ver_arch(self):
+        return self.osinfo_dict['shortid'] + "-" + self.osinfo_dict['arch']
+
     def prepare_install_instance(self):
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
