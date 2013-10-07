@@ -78,12 +78,10 @@ class Application(Singleton):
 
     def _logger(self, debug=False):
         logger = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
-        #current_handler = logger.handlers[0]
         filehandler = logging.FileHandler('/var/log/%s' % sys.argv[0].rpartition('/')[2])
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
         filehandler.setFormatter(formatter)
         logger.addHandler(filehandler)
-        #logger.removeHandler(current_handler)
         if debug:
             logger.setLevel(logging.DEBUG)
         return logger
@@ -91,7 +89,7 @@ class Application(Singleton):
     def signal_handler(self, signum, stack):
         if signum == signal.SIGTERM:
             logging.warning('caught signal SIGTERM, stopping...')
-            # Add steps to cleanly shutdown the process here #
+            self.builder.abort()
             sys.exit(0)
 
     def main(self):
@@ -117,11 +115,14 @@ class Application(Singleton):
                               'storage': self.arguments.get('image_storage'),
                               'name': self.arguments.get('name')}
 
-            builder = Builder(self.arguments.os,
-                              install_location=location,
-                              install_type=install_type,
-                              install_script=self.arguments.get('install_script'),
-                              install_config=install_config)
+            self.builder = Builder(self.arguments.os,
+                                   install_location=location,
+                                   install_type=install_type,
+                                   install_script=self.arguments.get('install_script'),
+                                   install_config=install_config)
+
+            # TODO: create a better way to run this and provide output as the builder does its thing.
+            self.builder.run()
 
         elif self.arguments.os_list:
             # possible distro values from libosinfo (for reference):
