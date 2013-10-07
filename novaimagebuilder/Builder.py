@@ -43,6 +43,8 @@ class Builder(object):
         Select and instantiate the correct OS class for build delegation.
 
         @param os: The dictionary of OS info for a give OS shortid
+
+        @return: An instance of an OS class that will control a VM for the image installation
         """
         # TODO: Change the way we select what class to instantiate to something that we do not have to touch
         # every time we add another OS class
