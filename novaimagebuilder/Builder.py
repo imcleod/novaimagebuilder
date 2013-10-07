@@ -60,16 +60,32 @@ class Builder(object):
             return None
 
     def run(self):
+        """
+        Starts the installation of an OS in an image via the appropriate OS class
+
+        @return: Status of the installation.
+        """
         self.os_delegate.prepare_install_instance()
         self.os_delegate.start_install_instance()
         return self.os_delegate.update_status()
 
     def abort(self):
+        """
+        Aborts the installation of an OS in an image.
+
+        @return: Status of the installation.
+        """
         self.os_delegate.abort()
         self.os_delegate.cleanup()
         return self.os_delegate.update_status()
 
     def status(self):
+        """
+        Returns the status of the installation.
+
+        @return: Status of the installation.
+        """
+        # TODO: replace this with a background thread that watches the status and cleans up as needed.
         status = self.os_delegate.update_status()
         if status in ('COMPLETE', 'FAILED'):
             self.os_delegate.cleanup()
