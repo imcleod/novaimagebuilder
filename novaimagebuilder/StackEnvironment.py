@@ -26,9 +26,23 @@ from NovaInstance import NovaInstance
 
 class StackEnvironment(Singleton):
 
-    def _singleton_init(self, username, password, tenant, auth_url):
+    def _singleton_init(self):
         super(StackEnvironment, self)._singleton_init()
-        
+        """ We want the following environment variables set
+	OS_USERNAME
+	OS_PASSWORD
+	OS_TENANT
+	OS_AUTH_URL
+        """ 
+        try:
+            username = os.environ['OS_USERNAME']
+            password = os.environ['OS_PASSWORD']
+            tenant = os.environ['OS_TENANT_NAME']
+            auth_url = os.environ['OS_AUTH_URL']
+        except Exception, e:
+            raise Exception("Unable to retrieve auth info from environment variables. exception: %s" % e.message)
+ 
+
         try:
             self.keystone = keystone_client.Client(username=username, password=password, tenant_name=tenant, auth_url=auth_url)
             self.keystone.authenticate()
@@ -48,9 +62,6 @@ class StackEnvironment(Singleton):
             self.cinder = cinder_client.Client('1', username, password, tenant, auth_url)
         except:
             self.cinder = None
-
-    def __init__(self, username, password, tenant, auth_url):
-        pass
 
     @property
     def keystone_server(self):
