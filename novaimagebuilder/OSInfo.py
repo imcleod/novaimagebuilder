@@ -116,6 +116,7 @@ class OSInfo(object):
 
         @param configuration A dict of install script customizations with the following keys:
             admin_password (required)
+            arch (required)
             license (optional, default: None)
             target_disk (optional, default: None)
             script_disk (optional, default: None)
@@ -148,11 +149,12 @@ class OSInfo(object):
 
             config = osinfo.InstallConfig()
             config.set_admin_password(configuration['admin_password'])
+            config.set_hardware_arch(configuration['arch'])
             if configuration.get('license'):
                 config.set_product_key(configuration['license'])
             if configuration.get('target_disk'):
                 config.set_target_disk(configuration['target_disk'])
-            if configuration.get('script_dis'):
+            if configuration.get('script_disk'):
                 config.set_script_disk(configuration['script_disk'])
             if configuration.get('preinstall_disk'):
                 config.set_pre_install_drivers_disk(configuration['preinstall_disk'])
