@@ -191,7 +191,12 @@ class StackEnvironment(Singleton):
 
         #blank root disk with aki, ari and cmdline. install iso is optional.
         if aki and ari and cmdline and userdata:
-            instance_id = self._launch_direct_boot(root_disk_image_id, userdata, install_iso=install_iso)
+            if install_iso[0] == 'cinder':
+                install_iso_id = install_iso[1]
+            else:
+                raise Exception("Install ISO must be a cinder volume")
+          
+            instance_id = self._launch_direct_boot(root_disk_image_id, userdata, install_iso=install_iso_id)
             return NovaInstance(instance_id, self)
 
     def _launch_direct_boot(self, root_disk, userdata, install_iso=None):

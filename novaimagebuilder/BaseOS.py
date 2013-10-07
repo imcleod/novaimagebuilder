@@ -16,10 +16,12 @@
 from CacheManager import CacheManager
 from StackEnvironment import StackEnvironment
 import inspect
+import logging
 
 class BaseOS(object):
 
     def __init__(self, osinfo_dict, install_type, install_media_location, install_config, install_script = None):
+        self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         self.env = StackEnvironment()
         self.cache = CacheManager()
         self.osinfo_dict = osinfo_dict
@@ -31,7 +33,7 @@ class BaseOS(object):
         # information and determine if the resulting install is possible
 
     def os_ver_arch(self):
-        return self.osinfo_dict['shortid'] + "-" + self.osinfo_dict['arch']
+        return self.osinfo_dict['shortid'] + "-" + self.install_config['arch']
 
     def prepare_install_instance(self):
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
