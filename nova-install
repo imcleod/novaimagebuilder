@@ -96,10 +96,10 @@ class Application(Singleton):
 
     def main(self):
         if self.arguments.os:
-            if self.arguments.get('install_iso'):
+            if self.arguments.install_iso:
                 location = self.arguments.install_iso
                 install_type = 'iso'
-            elif self.arguments.get('install_tree'):
+            elif self.arguments.install_tree:
                 location = self.arguments.install_tree
                 install_type = 'tree'
             else:
@@ -107,18 +107,18 @@ class Application(Singleton):
                 print('One of --install_iso or --install_tree must be given.')
                 return 1
 
-            install_config = {'admin_pw': self.arguments.get('admin_pw'),
-                              'license_key': self.arguments.get('license_key'),
-                              'arch': self.arguments.get('arch'),
-                              'disk_size': self.arguments.get('disk_size'),
-                              'flavor': self.arguments.get('instance_flavor'),
-                              'storage': self.arguments.get('image_storage'),
-                              'name': self.arguments.get('name')}
+            install_config = {'admin_pw': self.arguments.admin_pw,
+                              'license_key': self.arguments.license_key,
+                              'arch': self.arguments.arch,
+                              'disk_size': self.arguments.disk_size,
+                              'flavor': self.arguments.instance_flavor,
+                              'storage': self.arguments.image_storage,
+                              'name': self.arguments.name}
 
             self.builder = Builder(self.arguments.os,
                                    install_location=location,
                                    install_type=install_type,
-                                   install_script=self.arguments.get('install_script'),
+                                   install_script=self.arguments.install_script,
                                    install_config=install_config)
 
             # TODO: create a better way to run this and provide output as the builder does its thing.
