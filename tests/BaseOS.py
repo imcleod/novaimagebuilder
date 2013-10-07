@@ -16,9 +16,9 @@
 from CacheManager import CacheManager
 
 
-class MockOSPlugin(object):
+class BaseOS(object):
 
-    def __init__(self, stack_env, osinfo_dict, arch, install_type, install_media_location):
+    def __init__(self, stack_env, osinfo_dict, arch, install_type, install_media_location, install_script = None):
         # stack_env - The OpenStackEnvironment instance
         # 
         self.env = stack_env
@@ -79,6 +79,11 @@ class MockOSPlugin(object):
         pass
 
     def update_status(self):
+        """ returns:
+              INPROGRESS
+              FAILED
+              COMPLETE
+        """
         pass
 
     def wants_iso_content(self):
