@@ -75,6 +75,7 @@ class Application(Singleton):
             sys.exit(1)
         signal.signal(signal.SIGTERM, self.signal_handler)
         self.osinfo = OSInfo()
+        self.builder = None
 
     def _logger(self, debug=False):
         logger = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
@@ -89,14 +90,11 @@ class Application(Singleton):
     def signal_handler(self, signum, stack):
         if signum == signal.SIGTERM:
             logging.warning('caught signal SIGTERM, stopping...')
-            self.builder.abort()
+            if self.builder:
+                self.builder.abort()
             sys.exit(0)
 
     def main(self):
-        location = None
-        install_type = None
-        install_config = {}
-
         if self.arguments.os:
             if self.arguments.get('install_iso'):
                 location = self.arguments.install_iso
@@ -105,7 +103,9 @@ class Application(Singleton):
                 location = self.arguments.install_tree
                 install_type = 'tree'
             else:
-                pass
+                # if iso or tree is missing, print a message and exit non-zero
+                print('One of --install_iso or --install_tree must be given.')
+                return 1
 
             install_config = {'admin_pw': self.arguments.get('admin_pw'),
                               'license_key': self.arguments.get('license_key'),

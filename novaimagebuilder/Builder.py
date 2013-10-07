@@ -27,7 +27,8 @@ class Builder(object):
         @param install_location: The location of an ISO or install tree.
         @param install_type: The type of installation (iso or tree)
         @param install_script: A custom install script to be used instead of what OSInfo can generate
-        @param name: A name by which to refer to the built image
+        @param install_config: A dict of various info that may be needed for the build.
+                                (admin_pw, license_key, arch, disk_size, flavor, storage, name)
         """
         super(Builder, self).__init__()
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
