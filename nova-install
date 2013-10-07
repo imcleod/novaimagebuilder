@@ -21,6 +21,7 @@ import signal
 import argparse
 from novaimagebuilder.Singleton import Singleton
 from novaimagebuilder.OSInfo import OSInfo
+from novaimagebuilder.Builder import Builder
 
 class Arguments(Singleton):
     def _singleton_init(self, *args, **kwargs):
@@ -94,9 +95,33 @@ class Application(Singleton):
             sys.exit(0)
 
     def main(self):
+        location = None
+        install_type = None
+        install_config = {}
+
         if self.arguments.os:
-            # TODO: check for install_iso or install_tree, instatiate a Builder, and start building.
-            pass
+            if self.arguments.get('install_iso'):
+                location = self.arguments.install_iso
+                install_type = 'iso'
+            elif self.arguments.get('install_tree'):
+                location = self.arguments.install_tree
+                install_type = 'tree'
+            else:
+                pass
+
+            install_config = {'admin_pw': self.arguments.get('admin_pw'),
+                              'license_key': self.arguments.get('license_key'),
+                              'arch': self.arguments.get('arch'),
+                              'disk_size': self.arguments.get('disk_size'),
+                              'flavor': self.arguments.get('instance_flavor'),
+                              'storage': self.arguments.get('image_storage'),
+                              'name': self.arguments.get('name')}
+
+            builder = Builder(self.arguments.os,
+                              install_location=location,
+                              install_type=install_type,
+                              install_script=self.arguments.get('install_script'),
+                              install_config=install_config)
 
         elif self.arguments.os_list:
             # possible distro values from libosinfo (for reference):

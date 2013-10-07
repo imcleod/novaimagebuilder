@@ -19,12 +19,13 @@ import inspect
 
 class BaseOS(object):
 
-    def __init__(self, osinfo_dict, install_type, install_media_location, install_script = None):
+    def __init__(self, osinfo_dict, install_type, install_media_location, install_config, install_script = None):
         self.env = StackEnvironment()
         self.cache = CacheManager()
         self.osinfo_dict = osinfo_dict
         self.install_type = install_type
         self.install_media_location = install_media_location
+        self.install_config = install_config
         self.install_script = install_script
         # Subclasses can pull in the above and then do OS specific tasks to fill in missing
         # information and determine if the resulting install is possible
@@ -36,10 +37,8 @@ class BaseOS(object):
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def update_status(self):
-        """ returns:
-              INPROGRESS
-              FAILED
-              COMPLETE
+        """
+        @return: INPROGRESS, FAILED, COMPLETE
         """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 

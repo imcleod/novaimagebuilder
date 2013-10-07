@@ -19,7 +19,7 @@ from OSInfo import OSInfo
 
 
 class Builder(object):
-    def __init__(self, osid, install_location=None, install_type=None, install_script= None, name=None, arch='x86_64'):
+    def __init__(self, osid, install_location=None, install_type=None, install_script= None, install_config={}):
         """
         Builder selects the correct OS object to delegate build activity to.
 
@@ -33,9 +33,8 @@ class Builder(object):
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         self.install_location = install_location
         self.install_type = install_type
-        self.arch = arch
         self.install_script = install_script
-        self.name = name
+        self.install_config = install_config
         self.os = OSInfo().os_for_shortid(osid)
         self.os_delegate = self._delegate_for_os(self.os)
 
@@ -56,9 +55,9 @@ class Builder(object):
             try:
                 os_class = __import__(os_classname, fromlist=[os_classname])
                 return os_class(osinfo_dict=self.os,
-                                arch=self.arch,
                                 install_type=self.install_type,
                                 install_media_location=self.install_location,
+                                install_config=self.install_config,
                                 install_script=self.install_script)
             except ImportError as e:
                 self.log.exception(e)
