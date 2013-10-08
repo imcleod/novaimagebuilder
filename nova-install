@@ -78,11 +78,12 @@ class Application(Singleton):
         self.builder = None
 
     def _logger(self, debug=False):
+        logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
         logger = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
-        filehandler = logging.FileHandler('/var/log/%s' % sys.argv[0].rpartition('/')[2])
-        formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
-        filehandler.setFormatter(formatter)
-        logger.addHandler(filehandler)
+        #filehandler = logging.FileHandler('/var/log/%s' % sys.argv[0].rpartition('/')[2])
+        #formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
+        #filehandler.setFormatter(formatter)
+        #logger.addHandler(filehandler)
         if debug:
             logger.setLevel(logging.DEBUG)
         return logger
