@@ -68,7 +68,7 @@ class WindowsOS(BaseOS):
             copyfile(self.BLANK_FLOPPY, unattend_floppy_name)
             # Create a real file copy of the unattend content for use by guestfs
             unattend_file = NamedTemporaryFile()
-            unattend_file.write(self.install_script)
+            unattend_file.write(self.install_script.read())
             unattend_file.flush()
             # Copy unattend into floppy via guestfs
 	    g = guestfs.GuestFS()

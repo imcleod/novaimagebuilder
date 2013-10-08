@@ -51,7 +51,7 @@ class Builder(object):
         """
         # TODO: Change the way we select what class to instantiate to something that we do not have to touch
         # every time we add another OS class
-        os_classes = {'fedora': 'RedHatOS', 'rhel': 'RedHatOS', 'windows': 'WindowsOS', 'ubuntu': 'UbuntuOS'}
+        os_classes = {'fedora': 'RedHatOS', 'rhel': 'RedHatOS', 'win': 'WindowsOS', 'ubuntu': 'UbuntuOS'}
         os_classname = os_classes.get(os['distro'])
 
         if os_classname:
@@ -68,7 +68,7 @@ class Builder(object):
                 self.log.exception(e)
                 return None
         else:
-            return None
+            raise Exception("No delegate found for distro (%s)" % os['distro'])
 
     def run(self):
         """
