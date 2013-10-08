@@ -54,7 +54,7 @@ class Arguments(Singleton):
                                help='Size of the image root disk in gigabytes. (default: %(default)s)')
         argparser.add_argument('--instance_flavor', default='vanilla',
                                help='The type of instance to use for building the image. (default: %(default)s)')
-        argparser.add_argument('--name', help='A name to assign to the built image.')
+        argparser.add_argument('--name', help='A name to assign to the built image.', default='new-image')
 
         argparser.add_argument('--image_storage', choices=('glance', 'cinder', 'both'), default='glance',
                                help='Where to store the final image: glance, cinder, both (default: %(default)s)')
@@ -78,14 +78,16 @@ class Application(Singleton):
         self.builder = None
 
     def _logger(self, debug=False):
-        logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
+        if debug:
+            level = logging.DEBUG
+        else:
+            level = logging.WARNING
+        logging.basicConfig(level=level, format='%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
         logger = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         #filehandler = logging.FileHandler('/var/log/%s' % sys.argv[0].rpartition('/')[2])
         #formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s thread(%(threadName)s) Message: %(message)s')
         #filehandler.setFormatter(formatter)
         #logger.addHandler(filehandler)
-        if debug:
-            logger.setLevel(logging.DEBUG)
         return logger
 
     def signal_handler(self, signum, stack):
@@ -124,6 +126,7 @@ class Application(Singleton):
 
             # TODO: create a better way to run this and provide output as the builder does its thing.
             self.builder.run()
+            self.builder.wait_for_completion()
 
         elif self.arguments.os_list:
             # possible distro values from libosinfo (for reference):
