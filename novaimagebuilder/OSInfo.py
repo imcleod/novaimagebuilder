@@ -20,6 +20,12 @@ from gi.repository import Gio
 
 
 class OSInfo(object):
+    """
+    OSInfo offers convenience methods for getting information out of libosinfo
+
+    @param path: Path (str) to the libosinfo data to use. Defaults to /usr/share/libosinfo/db
+    """
+
     def __init__(self, path='/usr/share/libosinfo/db'):
         super(OSInfo, self).__init__()
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
@@ -28,6 +34,12 @@ class OSInfo(object):
         self.db = loader.get_db()
 
     def os_id_for_shortid(self, shortid):
+        """
+        Get the full libosinfo OS id for a given shortid.
+
+        @param shortid: The short form id for an OS record in libosinfo. (Ex. fedora18)
+        @return: The id for an OS record in libosinfo. (Ex. http://fedoraproject.org/fedora/18)
+        """
         for an_os in self.db.get_os_list().get_elements():
             if an_os.get_short_id() == shortid:
                 return an_os.get_id()
@@ -36,9 +48,8 @@ class OSInfo(object):
         """
         Given the shortid for an OS, get information about that OS.
 
-        @param shortid A str id for an OS such as rhel5
-
-        @return dict with keys:
+        @param shortid: A str id for an OS such as rhel5
+        @return: dict with keys:
             name (str)
             version (str)
             distro (str)
@@ -70,9 +81,8 @@ class OSInfo(object):
         """
         Given an install ISO, get information about the OS.
 
-        @param iso URL of an install iso
-
-        @return dict with keys:
+        @param iso: URL of an install iso
+        @return: dict with keys:
             name
             version
             distro
@@ -91,9 +101,8 @@ class OSInfo(object):
         """
         Given an install tree, get information about the OS.
 
-        @param tree URL of an install tree
-
-        @return dict with keys:
+        @param tree: URL of an install tree
+        @return: dict with keys:
             name
             version
             distro
@@ -112,9 +121,8 @@ class OSInfo(object):
         """
         Get an install script for a given OS.
 
-        @param osid Either the shortid or id for an OS (str)
-
-        @param configuration A dict of install script customizations with the following keys:
+        @param osid: Either the shortid or id for an OS (str)
+        @param configuration: A dict of install script customizations with the following keys:
             admin_password (required)
             arch (required)
             license (optional, default: None)
@@ -126,10 +134,8 @@ class OSInfo(object):
             keyboard (optional, default: 'en_US')
             language (optional, default: 'en_US')
             timezone (optional, default: 'America/New_York')
-
-        @param profile The profile of the install. (str) 'jeos', 'desktop', etc
-
-        @return install script as a str
+        @param profile: The profile of the install. (str) 'jeos', 'desktop', etc
+        @return: install script as a str
         """
         if not osid.startswith('http'):
             osid = self.os_id_for_shortid(osid)
@@ -179,10 +185,9 @@ class OSInfo(object):
         """
         List the operating systems available from libosinfo.
 
-        @param distros A dict with keys being distro names and the values being the lowest version to list.
+        @param distros: A dict with keys being distro names and the values being the lowest version to list.
             Ex. {'fedora': 17, 'rhel': 5, 'ubuntu':12, 'win':6}
-
-        @return A dict with keys being OS shortid and values being OS name
+        @return: A dict with keys being OS shortid and values being OS name
         """
         os_dict = {}
         for os in self.db.get_os_list().get_elements():
