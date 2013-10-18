@@ -81,6 +81,8 @@ class OSInfo(object):
         """
         Given an install ISO, get information about the OS.
 
+        *** THIS IS ONLY PARTIALLY IMPLEMENTED, USE AT YOUR OWN RISK ***
+
         @param iso: URL of an install iso
         @return: dict with keys:
             name
@@ -94,12 +96,15 @@ class OSInfo(object):
             minimum_resources
             recommended_resources
         """
+        # TODO: Figure out the correct way to implement / use this method
         media = osinfo.Media().create_from_location(iso)
         return self.os_for_shortid(media.get_os().get_shortid())
 
     def os_for_tree(self, tree):
         """
         Given an install tree, get information about the OS.
+
+        *** THIS IS ONLY PARTIALLY IMPLEMENTED, USE AT YOUR OWN RISK ***
 
         @param tree: URL of an install tree
         @return: dict with keys:
@@ -114,6 +119,7 @@ class OSInfo(object):
             minimum_resources
             recommended_resources
         """
+        # TODO: Figure out the correct way to implement / use this method
         install_tree = osinfo.Media().create_from_location(tree)
         return self.os_for_shortid(install_tree.get_os().get_shortid())
 
@@ -157,7 +163,7 @@ class OSInfo(object):
             config.set_admin_password(configuration['admin_password'])
             config.set_hardware_arch(configuration['arch'])
             if configuration.get('license'):
-                config.set_product_key(configuration['license'])
+                config.set_reg_product_key(configuration['license'])
             if configuration.get('target_disk'):
                 config.set_target_disk(configuration['target_disk'])
             if configuration.get('script_disk'):

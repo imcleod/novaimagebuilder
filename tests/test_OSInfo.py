@@ -42,13 +42,37 @@ class TestOSInfo(TestCase):
             self.assertIsInstance(os[key], expected_keys[key])
 
     def test_os_for_iso(self):
-        self.fail()
+        # TODO: implement test
+        self.skipTest('%s is only partially implemented and unused.' % __name__)
 
     def test_os_for_tree(self):
-        self.fail()
+        # TODO: implement test
+        self.skipTest('%s is only partially implemented and unused.' % __name__)
 
     def test_install_script(self):
-        self.fail()
+        config = {'admin_password': 'test_pw',
+                  'arch': 'test_arch',
+                  'license': 'test_license_key',
+                  'target_disk': 'C',
+                  'script_disk': 'A',
+                  'preinstall_disk': 'test-preinstall',
+                  'postinstall_disk': 'test-postinstall',
+                  'signed_drivers': False,
+                  'keyboard': 'en_TEST',
+                  'laguage': 'en_TEST',
+                  'timezone': 'America/Chicago'}
+
+        fedora_script = self.osinfo.install_script('fedora18', config)
+        windows_script = self.osinfo.install_script('win2k8r2', config)
+
+        # TODO: actually check that config values were set in the script(s)
+        self.assertIsNotNone(fedora_script)
+        self.assertIsInstance(fedora_script, str)
+
+        self.assertIsNotNone(windows_script)
+        self.assertIsInstance(windows_script, str)
+
+        self.assertNotEqual(fedora_script, windows_script)
 
     def test_os_ids(self):
         all_ids = self.osinfo.os_ids()
