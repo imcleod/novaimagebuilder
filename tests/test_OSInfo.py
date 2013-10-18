@@ -15,14 +15,31 @@
 #   limitations under the License.
 
 from unittest import TestCase
+from novaimagebuilder.OSInfo import OSInfo
 
 
 class TestOSInfo(TestCase):
+    def setUp(self):
+        self.osinfo = OSInfo()
+
     def test_os_id_for_shortid(self):
-        self.fail()
+        os_list = self.osinfo.db.get_os_list().get_elements()
+        for os in os_list:
+            self.assertEqual(self.osinfo.os_id_for_shortid(os.get_short_id()), os.get_id())
 
     def test_os_for_shortid(self):
-        self.fail()
+        os = self.osinfo.os_for_shortid('fedora18')
+        expected_keys = {'name': str, 'version': str, 'distro': str, 'family': str, 'shortid': str, 'id': str,
+                         'media_list': list, 'tree_list': list, 'minimum_resources': list,
+                         'recommended_resources': list}
+
+        self.assertIsNotNone(os)
+        self.assertIsInstance(os, dict)
+        # check that the correct items are in the dict (as defined in OSInfo)
+        # and that the values are the correct type
+        for key in expected_keys.keys():
+            self.assertIn(key, os)
+            self.assertIsInstance(os[key], expected_keys[key])
 
     def test_os_for_iso(self):
         self.fail()
@@ -34,4 +51,11 @@ class TestOSInfo(TestCase):
         self.fail()
 
     def test_os_ids(self):
-        self.fail()
+        all_ids = self.osinfo.os_ids()
+        fedora_ids = self.osinfo.os_ids({'fedora': 17})
+
+        self.assertIsNotNone(all_ids)
+        self.assertIsNotNone(fedora_ids)
+        self.assertIsInstance(all_ids, dict)
+        self.assertIsInstance(fedora_ids, dict)
+        self.assertLess(len(fedora_ids), len(all_ids))
