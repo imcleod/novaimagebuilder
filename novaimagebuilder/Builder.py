@@ -19,8 +19,9 @@ from OSInfo import OSInfo
 from StackEnvironment import StackEnvironment
 from time import sleep
 
+
 class Builder(object):
-    def __init__(self, osid, install_location=None, install_type=None, install_script= None, install_config={}):
+    def __init__(self, osid, install_location=None, install_type=None, install_script=None, install_config={}):
         """
         Builder selects the correct OS object to delegate build activity to.
 
@@ -98,7 +99,7 @@ class Builder(object):
         for i in range(1200):
             status = self.env.nova.servers.get(instance.id).status
             if status == "SHUTOFF":
-                self.log.debug("Instance (%s) has entered SHUTOFF state" % (instance.id) )
+                self.log.debug("Instance (%s) has entered SHUTOFF state" % instance.id)
                 return instance
             if i % 10 == 0:
                 self.log.debug("Waiting for instance status SHUTOFF - current status (%s): %d/1200" % (status, i))
@@ -106,9 +107,9 @@ class Builder(object):
 
     def _wait_for_glance_snapshot(self, image_id):
         image = self.env.glance.images.get(image_id)
-        self.log.debug("Waiting for glance image id (%s) to become active" % (image_id))
+        self.log.debug("Waiting for glance image id (%s) to become active" % image_id)
         while True:
-            self.log.debug("Current image status: %s" % (image.status))
+            self.log.debug("Current image status: %s" % image.status)
             sleep(2)
             image = self.env.glance.images.get(image.id)
             if image.status == "error":
@@ -117,24 +118,24 @@ class Builder(object):
                 break
             # Remove any direct boot properties if they exist
             properties = image.properties
-        for key in [ 'kernel_id', 'ramdisk_id', 'command_line' ]:
+        for key in ['kernel_id', 'ramdisk_id', 'command_line']:
             if key in properties:
                 del properties[key]
-            meta = {'properties':properties}
+            meta = {'properties': properties}
             image.update(**meta)
 
     def _terminate_instance(self, instance_id):
         nova = self.env.nova
         instance = nova.servers.get(instance_id)
         instance.delete()
-        self.log.debug("Waiting for instance id (%s) to be terminated/delete" % (instance_id))
+        self.log.debug("Waiting for instance id (%s) to be terminated/delete" % instance_id)
         while True:
-            self.log.debug("Current instance status: %s" % (instance.status))
+            self.log.debug("Current instance status: %s" % instance.status)
             sleep(5)
             try:
                 instance = nova.servers.get(instance_id)
             except Exception as e:
-                self.log.debug("Got exception (%s) assuming deletion complete" % (e))
+                self.log.debug("Got exception (%s) assuming deletion complete" % e)
                 break
 
     def abort(self):
