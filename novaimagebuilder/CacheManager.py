@@ -24,17 +24,19 @@ from StackEnvironment import StackEnvironment
 
 
 class CacheManager(Singleton):
-    """ Class to manage the retrieval and storage of install source objects
-        Typically the source for these objects are ISO images or install trees
-        accessible via HTTP.  Content is moved into glance and optionally cinder.
-        Some smaller pieces of content are also cached locally 
-        
-        Currently items are keyed by os, version, arch and can have arbitrary
-        names.  The name install_iso is special.  OS plugins are allowed to
-        access a local copy before it is sent to glance, even if that local copy
-        will eventually be deleted.
 
     """
+    Class to manage the retrieval and storage of install source objects
+    Typically the source for these objects are ISO images or install trees
+    accessible via HTTP.  Content is moved into glance and optionally cinder.
+    Some smaller pieces of content are also cached locally
+        
+    Currently items are keyed by os, version, arch and can have arbitrary
+    names.  The name install_iso is special.  OS plugins are allowed to
+    access a local copy before it is sent to glance, even if that local copy
+    will eventually be deleted.
+    """
+
     # TODO: Currently assumes the target environment is static - allow this to change
     # TODO: Sane handling of a pending cache item
     # TODO: Configurable

@@ -18,7 +18,17 @@ from StackEnvironment import StackEnvironment
 import inspect
 import logging
 
+
 class BaseOS(object):
+
+    """
+
+    @param osinfo_dict:
+    @param install_type:
+    @param install_media_location:
+    @param install_config:
+    @param install_script:
+    """
 
     def __init__(self, osinfo_dict, install_type, install_media_location, install_config, install_script = None):
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
@@ -33,31 +43,73 @@ class BaseOS(object):
         # information and determine if the resulting install is possible
 
     def os_ver_arch(self):
+        """
+
+
+        @return:
+        """
         return self.osinfo_dict['shortid'] + "-" + self.install_config['arch']
 
     def prepare_install_instance(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def start_install_instance(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def update_status(self):
         """
-        @return: INPROGRESS, FAILED, COMPLETE
+
+
+        @return:
         """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def wants_iso_content(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def iso_content_dict(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def url_content_dict(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def abort(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))
 
     def cleanup(self):
+        """
+
+
+        @return:
+        """
         raise NotImplementedError("Function (%s) not implemented" % (inspect.stack()[0][3]))

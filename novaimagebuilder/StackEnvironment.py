@@ -24,16 +24,16 @@ from novaclient.v1_1.contrib.list_extensions import ListExtManager
 import os
 from NovaInstance import NovaInstance
 
+
 class StackEnvironment(Singleton):
+
+    """
+    StackEnvironment
+    """
 
     def _singleton_init(self):
         super(StackEnvironment, self)._singleton_init()
-        """ We want the following environment variables set
-	OS_USERNAME
-	OS_PASSWORD
-	OS_TENANT
-	OS_AUTH_URL
-        """ 
+        # We want the following environment variables set: OS_USERNAME, OS_PASSWORD, OS_TENANT, OS_AUTH_URL
         try:
             username = os.environ['OS_USERNAME']
             password = os.environ['OS_PASSWORD']
@@ -41,22 +41,24 @@ class StackEnvironment(Singleton):
             auth_url = os.environ['OS_AUTH_URL']
         except Exception, e:
             raise Exception("Unable to retrieve auth info from environment variables. exception: %s" % e.message)
- 
 
         try:
-            self.keystone = keystone_client.Client(username=username, password=password, tenant_name=tenant, auth_url=auth_url)
+            self.keystone = keystone_client.Client(username=username, password=password, tenant_name=tenant,
+                                                   auth_url=auth_url)
             self.keystone.authenticate()
         except Exception, e:
             raise Exception('Error authenticating with keystone. Original exception: %s' % e.message)
         try:
             self.nova = nova_client.Client(username, password, tenant, auth_url=auth_url, insecure=True)
         except Exception, e:
-            raise Exception('Error connecting to Nova.  Nova is required for building images. Original exception: %s' % e.message)
+            raise Exception('Error connecting to Nova.  Nova is required for building images. Original exception: %s' %
+                            e.message)
         try:
             glance_url = self.keystone.service_catalog.get_endpoints()['image'][0]['adminURL']
             self.glance = glance_client.Client('1', endpoint=glance_url, token=self.keystone.auth_token)
         except Exception, e:
-            raise Exception('Error connecting to glance. Glance is required for building images. Original exception: %s' % e.message)
+            raise Exception('Error connecting to glance. Glance is required for building images. Original exception: %s'
+                            % e.message)
         
         try:
             self.cinder = cinder_client.Client('1', username, password, tenant, auth_url)
@@ -65,18 +67,48 @@ class StackEnvironment(Singleton):
 
     @property
     def keystone_server(self):
+        """
+
+
+        @return:
+        """
         return self.keystone
 
     @property
     def glance_server(self):
+        """
+
+
+        @return:
+        """
         return self.glance
 
     @property
     def cinder_server(self):
+        """
+
+
+        @return:
+        """
         return self.cinder
 
-    def upload_image_to_glance(self, name, local_path=None, location=None, format='raw', min_disk=0, min_ram=0, container_format='bare', is_public=True, properties={}):
-        image_meta = {'container_format': container_format, 'disk_format': format, 'is_public': is_public, 'min_disk': min_disk, 'min_ram': min_ram, 'name': name, 'properties': properties}
+    def upload_image_to_glance(self, name, local_path=None, location=None, format='raw', min_disk=0, min_ram=0,
+                               container_format='bare', is_public=True, properties={}):
+        """
+
+        @param name:
+        @param local_path:
+        @param location:
+        @param format:
+        @param min_disk:
+        @param min_ram:
+        @param container_format:
+        @param is_public:
+        @param properties:
+        @return: @raise Exception:
+        """
+        image_meta = {'container_format': container_format, 'disk_format': format, 'is_public': is_public,
+                      'min_disk': min_disk, 'min_ram': min_ram, 'name': name, 'properties': properties}
         try:
             image_meta['data'] = open(local_path, "r")
         except Exception, e:
@@ -96,22 +128,49 @@ class StackEnvironment(Singleton):
         print 'Finished uploading to Glance'
         return image.id
 
-    def upload_volume_to_cinder(self, name, volume_size=None, local_path=None, location=None, format='raw', container_format='bare', is_public=True, keep_image=True):
-        image_id = self.upload_image_to_glance(name, local_path=local_path, location=location, format=format, is_public=is_public)
+    def upload_volume_to_cinder(self, name, volume_size=None, local_path=None, location=None, format='raw',
+                                container_format='bare', is_public=True, keep_image=True):
+        """
+
+        @param name:
+        @param volume_size:
+        @param local_path:
+        @param location:
+        @param format:
+        @param container_format:
+        @param is_public:
+        @param keep_image:
+        @return:
+        """
+        image_id = self.upload_image_to_glance(name, local_path=local_path, location=location, format=format,
+                                               is_public=is_public)
         volume_id = self._migrate_from_glance_to_cinder(image_id, volume_size)
         if not keep_image:
             #TODO: spawn a thread to delete image after volume is created
             return volume_id
         return (image_id, volume_id)
-        
 
     def create_volume_from_image(self, image_id, volume_size=None):
+        """
+
+        @param image_id:
+        @param volume_size:
+        @return:
+        """
         return self._migrate_from_glance_to_cinder(image_id, volume_size)
 
     def delete_image(self, image_id):
+        """
+
+        @param image_id:
+        """
         self.glance.images.get(image_id).delete()
 
     def delete_volume(self, volume_id):
+        """
+
+        @param volume_id:
+        """
         self.cinder.volumes.get(volume_id).delete()
 
     def _migrate_from_glance_to_cinder(self, image_id, volume_size):
@@ -132,10 +191,20 @@ class StackEnvironment(Singleton):
         return volume.id
 
     def get_volume_status(self, volume_id):
-        volume = self.cinder.volumes.get(volume.id)
+        """
+
+        @param volume_id:
+        @return:
+        """
+        volume = self.cinder.volumes.get(volume_id)
         return volume.status
     
     def get_image_status(self, image_id):
+        """
+
+        @param image_id:
+        @return:
+        """
         image = self.glance.images.get(image_id)
         return image.status
 
@@ -154,7 +223,20 @@ class StackEnvironment(Singleton):
         else:
             raise Exception("Unable to create blank image")
 
-    def launch_instance(self, root_disk=None, install_iso=None, secondary_iso=None, floppy=None, aki=None, ari=None, cmdline=None, userdata=None):
+    def launch_instance(self, root_disk=None, install_iso=None, secondary_iso=None, floppy=None, aki=None, ari=None,
+                        cmdline=None, userdata=None):
+        """
+
+        @param root_disk:
+        @param install_iso:
+        @param secondary_iso:
+        @param floppy:
+        @param aki:
+        @param ari:
+        @param cmdline:
+        @param userdata:
+        @return: @raise Exception:
+        """
         if root_disk:
             #if root disk needs to be created
             if root_disk[0] == 'blank':
@@ -165,7 +247,10 @@ class StackEnvironment(Singleton):
                     root_disk_properties = {'kernel_id': aki, 'ramdisk_id': ari, 'command_line': cmdline}
                 else:
                     root_disk_properties = {}
-                root_disk_image_id = self.upload_image_to_glance('blank %dG disk' % root_disk_size, local_path='./blank_image.tmp', format='qcow2', properties=root_disk_properties)
+                root_disk_image_id = self.upload_image_to_glance('blank %dG disk' % root_disk_size,
+                                                                 local_path='./blank_image.tmp',
+                                                                 format='qcow2',
+                                                                 properties=root_disk_properties)
                 self._remove_blank_image()
             elif root_disk[0] == 'glance':
                 root_disk_image_id = root_disk[1]
@@ -215,7 +300,8 @@ class StackEnvironment(Singleton):
         else:
            #must be a network install
            block_device_mapping_v2 = None
-        instance = self.nova.servers.create("direct-boot-linux", image, "2", block_device_mapping_v2=block_device_mapping_v2, userdata=userdata)
+        instance = self.nova.servers.create("direct-boot-linux", image, "2",
+                                            block_device_mapping_v2=block_device_mapping_v2, userdata=userdata)
         return instance
     
     def _launch_windows_install(self, root_disk, install_cdrom, drivers_cdrom, autounattend_floppy):
@@ -245,18 +331,29 @@ class StackEnvironment(Singleton):
 
         try:
             image = self.glance.images.get(root_disk)
-            instance = self.nova.servers.create("windows-volume-backed", image, "2", meta={}, block_device_mapping_v2 = block_device_mapping_v2)
+            instance = self.nova.servers.create("windows-volume-backed", image, "2", meta={},
+                                                block_device_mapping_v2=block_device_mapping_v2)
             return instance
         except Exception, e:
             print "Error has occured: %s" % e.message
 
     def is_cinder(self):
+        """
+
+
+        @return:
+        """
         if not self.cinder:
             return False
         else:
             return True
 
     def is_cdrom(self):
+        """
+
+
+        @return:
+        """
         nova_extension_manager = ListExtManager(self.nova)
         for ext in nova_extension_manager.show_all():
             if ext.name == "VolumeAttachmentUpdate" and ext.is_loaded():
@@ -265,5 +362,10 @@ class StackEnvironment(Singleton):
 
     def is_floppy(self):
         #TODO: check if floppy is available.  
+        """
+
+
+        @return:
+        """
         return True
 

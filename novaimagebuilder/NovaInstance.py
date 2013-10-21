@@ -10,14 +10,29 @@ class NovaInstance:
     
     @property
     def id(self):
+        """
+
+
+        @return:
+        """
         return self.instance.id
 
     @property
     def status(self):
+        """
+
+
+        @return:
+        """
         self.instance = self.stack_env.nova.servers.get(self.instance.id)
         return self.instance.status
 
     def get_disk_and_net_activity(self):
+        """
+
+
+        @return:
+        """
         disk_activity = 0
         net_activity = 0
         diagnostics = self.instance.diagnostics()[1]
@@ -31,6 +46,11 @@ class NovaInstance:
         return disk_activity, net_activity
 
     def is_active(self, inactivity_timeout):
+        """
+
+        @param inactivity_timeout:
+        @return:
+        """
         inactivity_countdown = inactivity_timeout
         while inactivity_countdown > 0: 
             print "checking for inactivity"
@@ -39,9 +59,9 @@ class NovaInstance:
             except Exception, e:
                 saved_exception = e
                 break
-    
-    
-            if (current_disk_activity == self.last_disk_activity) and (current_net_activity < (self.last_net_activity + 4096)):
+
+            if (current_disk_activity == self.last_disk_activity) and \
+                    (current_net_activity < (self.last_net_activity + 4096)):
                 # if we saw no read or write requests since the last iteration,
                 # decrement our activity timer
                 inactivity_countdown -= 1
