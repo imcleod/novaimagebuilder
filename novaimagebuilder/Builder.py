@@ -95,47 +95,47 @@ class Builder(object):
         self._terminate_instance(raw_instance.id)
 
     def _wait_for_shutoff(self, instance):
-	for i in range(1200):
-	    status = self.env.nova.servers.get(instance.id).status
-	    if status == "SHUTOFF":
-		self.log.debug("Instance (%s) has entered SHUTOFF state" % (instance.id) )
-		return instance
-	    if i % 10 == 0:
-		self.log.debug("Waiting for instance status SHUTOFF - current status (%s): %d/1200" % (status, i))
-	    sleep(1)
+        for i in range(1200):
+            status = self.env.nova.servers.get(instance.id).status
+            if status == "SHUTOFF":
+                self.log.debug("Instance (%s) has entered SHUTOFF state" % (instance.id) )
+                return instance
+            if i % 10 == 0:
+                self.log.debug("Waiting for instance status SHUTOFF - current status (%s): %d/1200" % (status, i))
+                sleep(1)
 
     def _wait_for_glance_snapshot(self, image_id):
-	image = self.env.glance.images.get(image_id)
-	self.log.debug("Waiting for glance image id (%s) to become active" % (image_id))
-	while True:
-	    self.log.debug("Current image status: %s" % (image.status))
-	    sleep(2)
-	    image = self.env.glance.images.get(image.id)
-	    if image.status == "error":
-		raise Exception("Image entered error status while waiting for completion")
-	    elif image.status == 'active':
-		break
-        # Remove any direct boot properties if they exist
-        properties = image.properties 
-	for key in [ 'kernel_id', 'ramdisk_id', 'command_line' ]:
-	    if key in properties:
-		del properties[key]
-	meta = {'properties':properties}
-	image.update(**meta)
+        image = self.env.glance.images.get(image_id)
+        self.log.debug("Waiting for glance image id (%s) to become active" % (image_id))
+        while True:
+            self.log.debug("Current image status: %s" % (image.status))
+            sleep(2)
+            image = self.env.glance.images.get(image.id)
+            if image.status == "error":
+                raise Exception("Image entered error status while waiting for completion")
+            elif image.status == 'active':
+                break
+            # Remove any direct boot properties if they exist
+            properties = image.properties
+        for key in [ 'kernel_id', 'ramdisk_id', 'command_line' ]:
+            if key in properties:
+                del properties[key]
+            meta = {'properties':properties}
+            image.update(**meta)
 
     def _terminate_instance(self, instance_id):
         nova = self.env.nova
         instance = nova.servers.get(instance_id)
         instance.delete()
-	self.log.debug("Waiting for instance id (%s) to be terminated/delete" % (instance_id))
-	while True:
-	    self.log.debug("Current instance status: %s" % (instance.status))
-	    sleep(5)
-	    try:
-		instance = nova.servers.get(instance_id)
-	    except Exception as e:
-		self.log.debug("Got exception (%s) assuming deletion complete" % (e))
-		break
+        self.log.debug("Waiting for instance id (%s) to be terminated/delete" % (instance_id))
+        while True:
+            self.log.debug("Current instance status: %s" % (instance.status))
+            sleep(5)
+            try:
+                instance = nova.servers.get(instance_id)
+            except Exception as e:
+                self.log.debug("Got exception (%s) assuming deletion complete" % (e))
+                break
 
     def abort(self):
         """
