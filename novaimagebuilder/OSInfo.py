@@ -46,7 +46,31 @@ class OSInfo(object):
 
     def os_for_shortid(self, shortid):
         """
-        Given the shortid for an OS, get information about that OS.
+        Given the shortid for an OS, get a dictionary of information about that OS.
+
+        Items in 'media_list' are libosinfo Media objects. Useful methods on these objects include:
+            get_url() - URL str to the media
+            get_initrd_path() - Path str to the initrd image within the install tree for Linux installers
+            get_kernel_path() - Path str to the kernel within the install tree for Linux installers
+            get_volume_id() - A regular expression for matching the volume ID of an ISO9660 image
+            get_installer() - Does the media provide an installer for the OS (True or False)
+            get_installer_redoots() - The number of reboots required to complete an installation
+            get_live() - Can an OS be booted directly from this media without installation (True or False)
+
+        Items in the 'tree_list' are libosinfo Tree objects. Useful methods on these objects include:
+            get_url() - URL str to the install tree
+            get_boot_iso_path() - Path str to the boot image iso in the install tree
+            get_initrd_path() - Path str to the initrd image within the install tree for Linux trees
+            get_kernel_path() - Path str to the kernel within the install tree for Linux trees
+
+        Items in the 'minimum_resources' and 'recommended_resources' lists are libosinfo Resources objects. Useful
+        methods on these objects include:
+            get_cpu() - The CPU frequency in Hz or -1 if a value is not available
+            get_n_cpus() - The number of CPUs or -1 if a value is not available
+            get_ram() - The amount of RAM in bytes or -1 if a value is not available
+            get_storage() - The amount of storage in bytes or -1 if a value is not available
+
+        Further documentation on the libosinfo API should be found at http://libosinfo.org/api/
 
         @param shortid: A str id for an OS such as rhel5
         @return: dict with keys:
