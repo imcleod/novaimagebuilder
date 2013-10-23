@@ -70,7 +70,7 @@ class StackEnvironment(Singleton):
         """
 
 
-        @return:
+        @return: keystone client
         """
         return self.keystone
 
@@ -79,7 +79,7 @@ class StackEnvironment(Singleton):
         """
 
 
-        @return:
+        @return: glance client
         """
         return self.glance
 
@@ -88,7 +88,7 @@ class StackEnvironment(Singleton):
         """
 
 
-        @return:
+        @return: cinder client or None
         """
         return self.cinder
 
@@ -96,16 +96,16 @@ class StackEnvironment(Singleton):
                                container_format='bare', is_public=True, properties={}):
         """
 
-        @param name:
-        @param local_path:
-        @param location:
-        @param format:
-        @param min_disk:
-        @param min_ram:
-        @param container_format:
-        @param is_public:
-        @param properties:
-        @return: @raise Exception:
+        @param name: human readable name for image in glance
+        @param local_path: path to an image file 
+        @param location: URL for image file
+        @param format: 'raw', 'vhd', 'vmdk', 'vdi', 'iso', 'qcow2', 'aki', 'ari', 'ami' 
+        @param min_disk: integer of minimum disk size in GB that a nova instance needs to launch using this image
+        @param min_ram: integer of minimum amount of RAM in GB that a nova instance needs to launch using this image
+        @param container_format: currently not used by OpenStack components, so 'bare' is a good default
+        @param is_public: boolean to mark an image as being publically available
+        @param properties: dictionary where keys are property names such as ramdisk_id and kernel_id and values are the property values
+        @return: glance image id @raise Exception:
         """
         image_meta = {'container_format': container_format, 'disk_format': format, 'is_public': is_public,
                       'min_disk': min_disk, 'min_ram': min_ram, 'name': name, 'properties': properties}
@@ -132,15 +132,15 @@ class StackEnvironment(Singleton):
                                 container_format='bare', is_public=True, keep_image=True):
         """
 
-        @param name:
-        @param volume_size:
-        @param local_path:
-        @param location:
-        @param format:
-        @param container_format:
-        @param is_public:
-        @param keep_image:
-        @return:
+        @param name: human readable name for volume in cinder
+        @param volume_size: integer size in GB of volume
+        @param local_path: path to an image file 
+        @param location: URL to an image file
+        @param format: 'raw', 'vhd', 'vmdk', 'vdi', 'iso', 'qcow2', 'aki', 'ari', 'ami'
+        @param container_format: currently not used by OpenStack components, so 'bare' is a good default
+        @param is_public: boolean to mark an image as being publically available
+        @param keep_image: currently not implemented
+        @return: tuple (glance image id, cinder volume id)
         """
         image_id = self.upload_image_to_glance(name, local_path=local_path, location=location, format=format,
                                                is_public=is_public)
@@ -153,23 +153,23 @@ class StackEnvironment(Singleton):
     def create_volume_from_image(self, image_id, volume_size=None):
         """
 
-        @param image_id:
-        @param volume_size:
-        @return:
+        @param image_id: uuid of glance image
+        @param volume_size: integer size in GB of volume to be created
+        @return: cinder volume id
         """
         return self._migrate_from_glance_to_cinder(image_id, volume_size)
 
     def delete_image(self, image_id):
         """
 
-        @param image_id:
+        @param image_id: glance image id
         """
         self.glance.images.get(image_id).delete()
 
     def delete_volume(self, volume_id):
         """
 
-        @param volume_id:
+        @param volume_id: cinder volume id
         """
         self.cinder.volumes.get(volume_id).delete()
 
@@ -193,8 +193,8 @@ class StackEnvironment(Singleton):
     def get_volume_status(self, volume_id):
         """
 
-        @param volume_id:
-        @return:
+        @param volume_id: cinder volume id
+        @return: 'active', 'error', 'saving', 'deleted' (possibly more states exist, but dkliban could not find documentation where they are all listed)
         """
         volume = self.cinder.volumes.get(volume_id)
         return volume.status
@@ -202,8 +202,8 @@ class StackEnvironment(Singleton):
     def get_image_status(self, image_id):
         """
 
-        @param image_id:
-        @return:
+        @param image_id: glance image id
+        @return: 'queued', 'saving', 'active', 'killed', 'deleted', or 'pending_delete'
         """
         image = self.glance.images.get(image_id)
         return image.status
@@ -227,15 +227,15 @@ class StackEnvironment(Singleton):
                         cmdline=None, userdata=None):
         """
 
-        @param root_disk:
-        @param install_iso:
-        @param secondary_iso:
-        @param floppy:
-        @param aki:
-        @param ari:
-        @param cmdline:
-        @param userdata:
-        @return: @raise Exception:
+        @param root_disk: tuple where first element is 'blank', 'cinder', or 'glance' and second element is size, or cinder volume id, or glance image id
+        @param install_iso: install media represented by tuple where first element is 'cinder' or 'glance'  and second element is cinder volume id or glance image id. 
+        @param secondary_iso: media containing extra drivers  represented by tuple where first element is 'cinder' or 'glance'  and second element is cinder volume id or glance image id.
+        @param floppy: media to be mounted as a floppy represented by tuple where first element is  'cinder' or 'glance'  and second element is cinder volume id or glance image id.
+        @param aki: glance image id for kernel
+        @param ari: glance image id for ramdisk
+        @param cmdline: string command line argument for anaconda
+        @param userdata: string containing kickstart file or preseed file
+        @return: NovaInstance launched @raise Exception:
         """
         if root_disk:
             #if root disk needs to be created
@@ -341,7 +341,7 @@ class StackEnvironment(Singleton):
         """
 
 
-        @return:
+        @return: True if cinder service is available
         """
         if not self.cinder:
             return False
@@ -352,7 +352,7 @@ class StackEnvironment(Singleton):
         """
 
 
-        @return:
+        @return: True if volume can be attached as cdrom
         """
         nova_extension_manager = ListExtManager(self.nova)
         for ext in nova_extension_manager.show_all():
@@ -365,7 +365,7 @@ class StackEnvironment(Singleton):
         """
 
 
-        @return:
+        @return: Currently this always returns True.  
         """
         return True
 
