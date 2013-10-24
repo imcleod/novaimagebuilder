@@ -53,7 +53,7 @@ class NovaInstance:
         """
         inactivity_countdown = inactivity_timeout
         while inactivity_countdown > 0: 
-            print "checking for inactivity"
+            self.log.debug("checking for inactivity")
             try:
                 current_disk_activity, current_net_activity = self.get_disk_and_net_activity()
             except Exception, e:
