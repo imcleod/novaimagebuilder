@@ -153,7 +153,7 @@ class CacheManager(Singleton):
                     nested_obj_name = os_plugin.os_ver_arch() + "-" + nested_obj_type
                     nested_object_filename = self.CACHE_ROOT + nested_obj_name
                     self.log.debug("Downloading ISO file (%s) to local file (%s)" % (icd[nested_obj_type],nested_object_filename) )
-		    g.download(icd[nested_obj_type],nested_object_filename)
+			g.download(icd[nested_obj_type],nested_object_filename)
                     if nested_obj_type == "install-iso-kernel":
                         image_format = "aki"
                     elif nested_obj_type == "install-iso-initrd":
@@ -197,22 +197,22 @@ class CacheManager(Singleton):
 	"""
 
 	def _data(buf):
-	    """
-	    Function that is called back from the pycurl perform() method to
-	    actually write data to disk.
-	    """
-	    os.write(fd, buf)
+		"""
+		Function that is called back from the pycurl perform() method to
+		actually write data to disk.
+		"""
+		os.write(fd, buf)
 
 	fd = os.open(filename,os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
 
 	try:
-	    c = pycurl.Curl()
-	    c.setopt(c.URL, url)
-	    c.setopt(c.CONNECTTIMEOUT, 15)
-	    c.setopt(c.WRITEFUNCTION, _data)
-	    c.setopt(c.FOLLOWLOCATION, 1)
-	    c.perform()
-	    c.close()
+		c = pycurl.Curl()
+		c.setopt(c.URL, url)
+		c.setopt(c.CONNECTTIMEOUT, 15)
+		c.setopt(c.WRITEFUNCTION, _data)
+		c.setopt(c.FOLLOWLOCATION, 1)
+		c.perform()
+		c.close()
 	finally:
-	    os.close(fd)
+		os.close(fd)
 
