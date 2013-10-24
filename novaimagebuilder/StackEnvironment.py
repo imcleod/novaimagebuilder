@@ -23,6 +23,7 @@ from time import sleep
 from novaclient.v1_1.contrib.list_extensions import ListExtManager
 import os
 from NovaInstance import NovaInstance
+import logging
 
 
 class StackEnvironment(Singleton):
@@ -33,6 +34,7 @@ class StackEnvironment(Singleton):
 
     def _singleton_init(self):
         super(StackEnvironment, self)._singleton_init()
+        self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         # We want the following environment variables set: OS_USERNAME, OS_PASSWORD, OS_TENANT, OS_AUTH_URL
         try:
             username = os.environ['OS_USERNAME']
@@ -118,14 +120,14 @@ class StackEnvironment(Singleton):
                 raise e
         
         image = self.glance.images.create(name=name)
-        print 'Started uploading to Glance'
+        self.log.debug("Started uploading to Glance")
         image.update(**image_meta)
         while image.status != 'active':
             image = self.glance.images.get(image.id)
             if image.status == 'error':
                 raise Exception('Error uploading image to Glance.')
             sleep(1)
-        print 'Finished uploading to Glance'
+        self.log.debug("Finished uploading to Glance")
         return image.id
 
     def upload_volume_to_cinder(self, name, volume_size=None, local_path=None, location=None, format='raw',
@@ -179,7 +181,7 @@ class StackEnvironment(Singleton):
         # Gigabytes rounded up
             volume_size = int(image.size/(1024*1024*1024)+1)
 
-        print 'Started copying to Cinder'
+        self.log.debug("Started copying to Cinder")
         volume = self.cinder.volumes.create(volume_size, display_name=image.name, imageRef=image.id)
         while volume.status != 'available':
             volume = self.cinder.volumes.get(volume.id)
@@ -187,7 +189,7 @@ class StackEnvironment(Singleton):
                 volume.delete()
                 raise Exception('Error occured copying glance image %s to volume %s' % (image_id, volume.id))
             sleep(1)
-        print 'Finished copying to Cinder'
+        self.log.debug("Finished copying to Cinder")
         return volume.id
 
     def get_volume_status(self, volume_id):
@@ -335,7 +337,7 @@ class StackEnvironment(Singleton):
                                                 block_device_mapping_v2=block_device_mapping_v2)
             return instance
         except Exception, e:
-            print "Error has occured: %s" % e.message
+            self.log.debug("Error has occured: %s" % e.message)
 
     def is_cinder(self):
         """
