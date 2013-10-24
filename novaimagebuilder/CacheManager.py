@@ -58,12 +58,30 @@ class CacheManager(Singleton):
         self.index = None
 
     def lock_and_get_index(self):
+        """
+        Obtain an exclusive lock on the cache index and then load it into the
+        "index" instance variable.  Tasks done while holding this lock should be
+        very brief and non-blocking.  Calls to this should be followed by either
+        write_index_and_unlock() or unlock_index() depending upon whether or not the
+        index has been modified.
+
+        @param none
+        @return none
+        """
+
         #self.INDEX_LOCK.acquire()
         index_file = open(self.index_filename)
         self.index = json.load(index_file)
         index_file.close()
 
     def write_index_and_unlock(self):
+        """
+        Write contents of self.index back to the persistent file and then unlock it
+
+        @param none
+        @return none
+        """
+
         index_file = open(self.index_filename, 'w')
         json.dump(self.index , index_file)
         index_file.close()
@@ -71,6 +89,10 @@ class CacheManager(Singleton):
         #self.INDEX_LOCK.release()
 
     def unlock_index(self):
+        """
+        Release the cache index lock without updating the persistent file
+        """
+
         self.index = None
         #self.INDEX_LOCK.release()
 
@@ -118,6 +140,24 @@ class CacheManager(Singleton):
         self.index[os_ver_arch][name][location] = value
 
     def retrieve_and_cache_object(self, object_type, os_plugin, source_url, save_local):
+        """
+        Download a file from a URL and store it in the cache.  Uses the object_type and
+        data from the OS delegate/plugin to index the file correctly.  Also treats the
+        object tyoe "install-iso" as a special case, downloading it locally and then allowing
+        the OS delegate to request individual files from within the ISO for extraction and
+        caching.  This is used to efficiently retrieve the kernel and ramdisk from Linux
+        install ISOs.
+
+        @param object_type: A string indicating the type of object being retrieved
+        @oaran os_plugin: Instance of the delegate for the OS associated with the download
+        @param source_url: Location from which to retrieve the object/file
+        @param save_local: bool indicating whether a local copy of the object should be saved
+        @return dict containing the various cached locations of the file
+           local: Local path to file
+           glance: Glance object UUID
+           cinder: Cinder object UUID
+        """
+        
         self.lock_and_get_index()
         existing_cache =  self._get_index_value(os_plugin.os_ver_arch(), object_type, None)
         if existing_cache:
