@@ -13,6 +13,7 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+
 import sys
 import logging
 import json
@@ -24,13 +25,12 @@ from StackEnvironment import StackEnvironment
 
 
 class CacheManager(Singleton):
-
     """
     Class to manage the retrieval and storage of install source objects
     Typically the source for these objects are ISO images or install trees
     accessible via HTTP.  Content is moved into glance and optionally cinder.
     Some smaller pieces of content are also cached locally
-        
+
     Currently items are keyed by os, version, arch and can have arbitrary
     names.  The name install_iso is special.  OS plugins are allowed to
     access a local copy before it is sent to glance, even if that local copy
@@ -64,9 +64,6 @@ class CacheManager(Singleton):
         very brief and non-blocking.  Calls to this should be followed by either
         write_index_and_unlock() or unlock_index() depending upon whether or not the
         index has been modified.
-
-        @param none
-        @return none
         """
 
         #self.INDEX_LOCK.acquire()
@@ -77,9 +74,6 @@ class CacheManager(Singleton):
     def write_index_and_unlock(self):
         """
         Write contents of self.index back to the persistent file and then unlock it
-
-        @param none
-        @return none
         """
 
         index_file = open(self.index_filename, 'w')
@@ -125,10 +119,10 @@ class CacheManager(Singleton):
             raise Exception("Attempt made to read index values while a locked index is not present")
 
         if not os_ver_arch in self.index:
-            self.index[os_ver_arch] = { }
+            self.index[os_ver_arch] = {}
 
         if not name in self.index[os_ver_arch]:
-            self.index[os_ver_arch][name] = { }
+            self.index[os_ver_arch][name] = {}
 
         # If the specific location is not specified, assume value is the entire dict
         if not location:
@@ -149,7 +143,7 @@ class CacheManager(Singleton):
         install ISOs.
 
         @param object_type: A string indicating the type of object being retrieved
-        @oaran os_plugin: Instance of the delegate for the OS associated with the download
+        @param os_plugin: Instance of the delegate for the OS associated with the download
         @param source_url: Location from which to retrieve the object/file
         @param save_local: bool indicating whether a local copy of the object should be saved
         @return dict containing the various cached locations of the file
@@ -157,9 +151,9 @@ class CacheManager(Singleton):
            glance: Glance object UUID
            cinder: Cinder object UUID
         """
-        
+
         self.lock_and_get_index()
-        existing_cache =  self._get_index_value(os_plugin.os_ver_arch(), object_type, None)
+        existing_cache = self._get_index_value(os_plugin.os_ver_arch(), object_type, None)
         if existing_cache:
             self.log.debug("Found object in cache")
             self.unlock_index()
@@ -178,22 +172,23 @@ class CacheManager(Singleton):
         if not os.path.isfile(local_object_filename):
             self._http_download_file(source_url, local_object_filename)
         else:
-            self.log.warning("Local file (%s) is already present - assuming it is valid" % (local_object_filename) )
+            self.log.warning("Local file (%s) is already present - assuming it is valid" % local_object_filename)
 
         if object_type == "install-iso" and os_plugin.wants_iso_content():
             self.log.debug("The plugin wants to do something with the ISO - extracting stuff now")
             icd = os_plugin.iso_content_dict()
             if icd:
                 self.log.debug("Launching guestfs") 
-		g = guestfs.GuestFS()
-		g.add_drive_ro(local_object_filename)
-		g.launch()
-		g.mount_options ("", "/dev/sda", "/")
+                g = guestfs.GuestFS()
+                g.add_drive_ro(local_object_filename)
+                g.launch()
+                g.mount_options ("", "/dev/sda", "/")
                 for nested_obj_type in icd.keys():
                     nested_obj_name = os_plugin.os_ver_arch() + "-" + nested_obj_type
                     nested_object_filename = self.CACHE_ROOT + nested_obj_name
-                    self.log.debug("Downloading ISO file (%s) to local file (%s)" % (icd[nested_obj_type],nested_object_filename) )
-			g.download(icd[nested_obj_type],nested_object_filename)
+                    self.log.debug("Downloading ISO file (%s) to local file (%s)" % (icd[nested_obj_type],
+                                                                                     nested_object_filename))
+                    g.download(icd[nested_obj_type],nested_object_filename)
                     if nested_obj_type == "install-iso-kernel":
                         image_format = "aki"
                     elif nested_obj_type == "install-iso-initrd":
@@ -201,15 +196,15 @@ class CacheManager(Singleton):
                     else:
                         raise Exception("Nested object of unknown type requested")
                     (glance_id, cinder_id) = self._do_remote_uploads(nested_obj_name, nested_object_filename, 
-                                                                     format = image_format, container_format = image_format,
+                                                                     format=image_format, container_format=image_format,
                                                                      use_cinder = False)
-                    locations = { "local": nested_object_filename, "glance": str(glance_id), "cinder": str(cinder_id) }
+                    locations = {"local": nested_object_filename, "glance": str(glance_id), "cinder": str(cinder_id)}
                     self._do_index_updates(os_plugin.os_ver_arch(), object_type, locations)
-		g.shutdown()
-		g.close()
+                g.shutdown()
+                g.close()
 
         (glance_id, cinder_id) = self._do_remote_uploads(object_name, local_object_filename)
-        locations =  { "local": local_object_filename, "glance": str(glance_id), "cinder": str(cinder_id) }
+        locations = {"local": local_object_filename, "glance": str(glance_id), "cinder": str(cinder_id)}
         self._do_index_updates(os_plugin.os_ver_arch(), object_type, locations)
 
         return locations
@@ -219,40 +214,36 @@ class CacheManager(Singleton):
         self._set_index_value(os_ver_arch, object_type, None, locations )
         self.write_index_and_unlock()
 
-    def _do_remote_uploads(self, object_name, local_object_filename, format='raw', container_format = 'bare', use_cinder=True):
+    def _do_remote_uploads(self, object_name, local_object_filename, format='raw', container_format='bare',
+                           use_cinder=True):
         if self.env.is_cinder() and use_cinder:
             (glance_id, cinder_id) = self.env.upload_volume_to_cinder(object_name, local_path=local_object_filename, 
-                                                                      format = format, container_format = container_format)
+                                                                      format=format, container_format=container_format)
         else:
             cinder_id = None
             glance_id = self.env.upload_image_to_glance(object_name, local_path=local_object_filename,
-                                                        format = format, container_format = container_format)
+                                                        format=format, container_format=container_format)
         return (glance_id, cinder_id)
 
     def _http_download_file(self, url, filename):
-	"""
-	Function to download a file from url to filename
-        Borrowed and modified from Oz by Chris Lalancette
-        https://github.com/clalancette/oz
-	"""
+        # Function to download a file from url to filename
+        # Borrowed and modified from Oz by Chris Lalancette
+        # https://github.com/clalancette/oz
 
-	def _data(buf):
-		"""
-		Function that is called back from the pycurl perform() method to
-		actually write data to disk.
-		"""
-		os.write(fd, buf)
+        def _data(buf):
+            # Function that is called back from the pycurl perform() method to
+            # actually write data to disk.
+            os.write(fd, buf)
 
-	fd = os.open(filename,os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
+        fd = os.open(filename,os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
 
-	try:
-		c = pycurl.Curl()
-		c.setopt(c.URL, url)
-		c.setopt(c.CONNECTTIMEOUT, 15)
-		c.setopt(c.WRITEFUNCTION, _data)
-		c.setopt(c.FOLLOWLOCATION, 1)
-		c.perform()
-		c.close()
-	finally:
-		os.close(fd)
-
+        try:
+            c = pycurl.Curl()
+            c.setopt(c.URL, url)
+            c.setopt(c.CONNECTTIMEOUT, 15)
+            c.setopt(c.WRITEFUNCTION, _data)
+            c.setopt(c.FOLLOWLOCATION, 1)
+            c.perform()
+            c.close()
+        finally:
+            os.close(fd)
