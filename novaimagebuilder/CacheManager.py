@@ -14,7 +14,6 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import sys
 import logging
 import json
 import os.path
@@ -49,7 +48,7 @@ class CacheManager(Singleton):
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         self.index_filename = self.CACHE_ROOT + self.INDEX_FILE
         if not os.path.isfile(self.index_filename):
-            self.log.debug("Creating cache index file (%s)" % (self.index_filename) )
+            self.log.debug("Creating cache index file (%s)" % self.index_filename)
             # TODO: somehow prevent a race here
             index_file = open(self.index_filename, 'w')
             json.dump({ } , index_file)
