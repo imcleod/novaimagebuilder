@@ -81,29 +81,41 @@ class Builder(object):
         self.os_delegate.start_install_instance()
         return self.os_delegate.update_status()
 
-    def wait_for_completion(self):
+    def wait_for_completion(self, inactivity_timeout):
         """
         Waits for the install_instance to enter SHUTDOWN state then launches a snapshot
+
+        @param inactivity_timeout amount of time to wait for activity before declaring the installation a failure in 10s of seconds (6 is 60 seconds)
 
         @return: Success or Failure
         """
         # TODO: Timeouts, activity checking
-        raw_instance = self.os_delegate.install_instance.instance
-        self._wait_for_shutoff(raw_instance)
+        instance = self._wait_for_shutoff(self.os_delegate.install_instance, inactivity_timeout)
         # Snapshot with self.install_config['name']
-        finished_image_id = raw_instance.create_image(self.install_config['name'])
-        self._wait_for_glance_snapshot(finished_image_id)
-        self._terminate_instance(raw_instance.id)
+        if instance:
+            finished_image_id = instance.instance.create_image(self.install_config['name'])
+            self._wait_for_glance_snapshot(finished_image_id)
+            self._terminate_instance(instance.id)
+        # Leave instance running if install did not finish
 
-    def _wait_for_shutoff(self, instance):
+    def _wait_for_shutoff(self, instance, inactivity_timeout):
+        inactivity_countdown = inactivity_timeout        
         for i in range(1200):
-            status = self.env.nova.servers.get(instance.id).status
+            status = instance.status
             if status == "SHUTOFF":
                 self.log.debug("Instance (%s) has entered SHUTOFF state" % instance.id)
                 return instance
             if i % 10 == 0:
                 self.log.debug("Waiting for instance status SHUTOFF - current status (%s): %d/1200" % (status, i))
-                sleep(1)
+            if not instance.is_active():
+                inactivity_countdown -= 1
+            else:
+                inactivity_countdown = inactivity_timeout
+            if inactivity_countdown == 0:
+                self.log.debug("Install instance has become inactive.  Instance will remain running so you can investigate what happened.")
+                return
+            sleep(1)
+
 
     def _wait_for_glance_snapshot(self, image_id):
         image = self.env.glance.images.get(image_id)

@@ -283,8 +283,8 @@ class StackEnvironment(Singleton):
             else:
                 raise Exception("Install ISO must be a cinder volume")
           
-            instance_id = self._launch_direct_boot(root_disk_image_id, userdata, install_iso=install_iso_id)
-            return NovaInstance(instance_id, self)
+            instance = self._launch_direct_boot(root_disk_image_id, userdata, install_iso=install_iso_id)
+            return NovaInstance(instance, self)
 
     def _launch_direct_boot(self, root_disk, userdata, install_iso=None):
         image = self.glance.images.get(root_disk)
@@ -331,13 +331,10 @@ class StackEnvironment(Singleton):
                     },
                     ]
 
-        try:
-            image = self.glance.images.get(root_disk)
-            instance = self.nova.servers.create("windows-volume-backed", image, "2", meta={},
+        image = self.glance.images.get(root_disk)
+        instance = self.nova.servers.create("windows-volume-backed", image, "2", meta={},
                                                 block_device_mapping_v2=block_device_mapping_v2)
-            return instance
-        except Exception, e:
-            self.log.debug("Error has occured: %s" % e.message)
+        return instance
 
     def is_cinder(self):
         """

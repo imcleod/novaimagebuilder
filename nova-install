@@ -124,9 +124,10 @@ class Application(Singleton):
                                    install_script=self.arguments.install_script,
                                    install_config=install_config)
 
-            # TODO: create a better way to run this and provide output as the builder does its thing.
+            # TODO: create a better way to run this.
+            # The inactivity timeout is 180 seconds
             self.builder.run()
-            self.builder.wait_for_completion()
+            self.builder.wait_for_completion(180)
 
         elif self.arguments.os_list:
             # possible distro values from libosinfo (for reference):
