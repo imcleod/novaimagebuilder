@@ -16,9 +16,11 @@
 
 import logging
 import json
+import os
 import os.path
 import pycurl
 import guestfs
+import fcntl
 from Singleton import Singleton
 from StackEnvironment import StackEnvironment
 
@@ -55,6 +57,7 @@ class CacheManager(Singleton):
             index_file.close()
         # This should be None except when we are actively working on it and hold a lock
         self.index = None
+        self.locked = False
 
     def lock_and_get_index(self):
         """
@@ -65,18 +68,30 @@ class CacheManager(Singleton):
         index has been modified.
         """
 
-        #self.INDEX_LOCK.acquire()
-        index_file = open(self.index_filename)
-        self.index = json.load(index_file)
+        index_file = open(self.index_filename, os.O_CREAT)
+        # blocking
+        fcntl.flock(index_file, fcntl.LOCK_EX)
+        self.lock = True
+        index = index_file.read()
+        if len(index) == 0:
+            # Empty - possibly because we created it earlier - create empty dict
+            self.index = { }
+        else:
+            self.index = json.load(index_file)
         index_file.close()
 
     def write_index_and_unlock(self):
         """
         Write contents of self.index back to the persistent file and then unlock it
         """
-
+        if not self.locked:
+            raise Exception("Asked to write and unlock cache index when no lock has been granted")
         index_file = open(self.index_filename, 'w')
         json.dump(self.index , index_file)
+        # TODO: Double-check that this is safe
+        index_file.flush()
+        fcntl.flock(index_file, fcntl.LOCK_UN)
+        sefl.lock = False
         index_file.close()
         self.index = None
         #self.INDEX_LOCK.release()
