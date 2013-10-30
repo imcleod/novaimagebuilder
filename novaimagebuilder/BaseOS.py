@@ -15,6 +15,7 @@
 #   limitations under the License.
 from CacheManager import CacheManager
 from StackEnvironment import StackEnvironment
+from SyslinuxHelper import SyslinuxHelper
 import inspect
 import logging
 
@@ -34,6 +35,7 @@ class BaseOS(object):
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         self.env = StackEnvironment()
         self.cache = CacheManager()
+        self.syslinux = SyslinuxHelper()
         self.osinfo_dict = osinfo_dict
         self.install_type = install_type
         self.install_media_location = install_media_location

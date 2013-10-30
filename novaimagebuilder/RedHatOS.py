@@ -27,27 +27,105 @@ class RedHatOS(BaseOS):
         #    raise Exception("Direct Boot feature required - Installs using syslinux stub not yet implemented")
 
         if install_type == "iso" and not self.env.is_cdrom():
-            raise Exceptino("ISO installs require a Nova environment that can support CDROM block device mapping")
+            raise Exception("ISO installs require a Nova environment that can \
+                    support CDROM block device mapping")
 
     def prepare_install_instance(self):
-        """ Method to prepare all necessary local and remote images for an install
-            This method may require significant local disk or CPU resource
+        """ Method to prepare all necessary local and remote images for an
+            install. This method may require significant local disk or CPU 
+            resource.
         """
-        if self.install_type == "iso":
-            iso_locations = self.cache.retrieve_and_cache_object("install-iso", self, self.install_media_location, True)
-            self.iso_volume = iso_locations['cinder']
-            self.iso_aki = self.cache.retrieve_and_cache_object("install-iso-kernel", self, None, True)['glance']
-            self.iso_ari = self.cache.retrieve_and_cache_object("install-iso-initrd", self, None, True)['glance']            
-            self.log.debug ("Prepared cinder iso (%s), aki (%s) and ari (%s) for install instance" %
-                            ( self.iso_volume, self.iso_aki, self.iso_ari ) )    
+        
+        self.cmdline = "ks=http://169.254.169.254/latest/user-data"
+
+        #If direct boot option is available, prepare kernel and ramdisk
+        if self.env.is_direct_boot():
+            if self.install_type == "iso":
+                iso_locations = self.cache.retrieve_and_cache_object(
+                        "install-iso", self, self.install_media_location, True)
+                self.iso_volume = iso_locations['cinder']
+                self.iso_aki = self.cache.retrieve_and_cache_object(
+                        "install-iso-kernel", self, None, True)['glance']
+                self.iso_ari = self.cache.retrieve_and_cache_object(
+                        "install-iso-initrd", self, None, True)['glance']            
+                self.log.debug ("Prepared cinder iso (%s), aki (%s) and ari \
+                        (%s) for install instance" % (self.iso_volume, 
+                            self.iso_aki, self.iso_ari))    
+            if self.install_type == "tree":
+                kernel_location = "%s%s" % (self.install_media_location,
+                        self.url_content_dict()["install-url-kernel"])
+                ramdisk_location = "%s%s" % (self.install_media_location, 
+                        self.url_content_dict()["install-url-initrd"])
+                self.tree_aki = self.cache.retrieve_and_cache_object(
+                        "install-url-kernel", self, kernel_location, 
+                        True)['glance']
+                self.tree_ari = self.cache.retrieve_and_cache_object(
+                        "install-url-kernel", self, ramdisk_location, 
+                        True)['glance']
+                self.log.debug ("Prepared cinder aki (%s) and ari (%s) for \
+                        install instance" % (self.iso_volume, self.iso_aki, 
+                            self.iso_ari)) 
+
+        #Else, download kernel and ramdisk and prepare syslinux image with the two
+        else:
+            if self.install_type == "iso":
+                iso_locations = self.cache.retrieve_and_cache_object(
+                        "install-iso", self, self.install_media_location, True)
+                self.iso_volume = iso_locations['cinder']
+                self.iso_aki = self.cache.retrieve_and_cache_object(
+                        "install-iso-kernel",  self, None, True)['local']
+                self.iso_ari = self.cache.retrieve_and_cache_object(
+                        "install-iso-initrd",  self, None, True)['local']
+                self.boot_disk_id = self.syslinux.create_syslinux_stub(
+                        "%s syslinux" % self.os_ver_arch(), self.cmdline, 
+                        self.iso_aki, self.iso_ari)
+                self.log.debug("Prepared syslinux image by extracting kernel \
+                        and ramdisk from ISO")
+
+            if self.install_type == "tree":
+                kernel_location = "%s%s" % (self.install_media_location, 
+                        self.url_content_dict()["install-url-kernel"])
+                ramdisk_location = "%s%s" % (self.install_media_location, 
+                        self.url_content_dict()["install-url-initrd"])
+                self.url_aki = self.cache.retrieve_and_cache_object(
+                        "install-url-kernel",  self, kernel_location, 
+                        True)['local']
+                self.url_ari = self.cache.retrieve_and_cache_object(
+                        "install-url-initrd",  self, ramdisk_location, 
+                        True)['local']
+                self.boot_disk_id = self.syslinux.create_syslinux_stub(
+                        "%s syslinux" % self.os_ver_arch(), self.cmdline, 
+                        self.url_aki, self.url_ari)
+                self.log.debug("Prepared syslinux image by extracting kernel \
+                        and ramdisk from ISO")
+
 
     def start_install_instance(self):
-        if self.install_type == "iso":
+        if self.env.is_direct_boot():
             self.log.debug("Launching direct boot ISO install instance")
-            self.install_instance = self.env.launch_instance(root_disk=('blank', 10), install_iso=('cinder', self.iso_volume),
-                                                                        aki=self.iso_aki, ari=self.iso_ari, 
-                                                                        cmdline="ks=http://169.254.169.254/latest/user-data", 
-                                                                        userdata=self.install_script)
+            if self.install_type == "iso":
+                self.install_instance = self.env.launch_instance(
+                        root_disk=('blank', 10), 
+                        install_iso=('cinder', self.iso_volume),
+                        aki=self.iso_aki, ari=self.iso_ari, 
+                        cmdline=self.cmdline, userdata=self.install_script)
+
+            if self.install_type == "tree":
+                self.install_instance = self.env.launch_instance(
+                        root_disk=('blank', 10), aki=self.iso_aki, 
+                        ari=self.iso_ari, cmdline=self.cmdline, 
+                        userdata=self.install_script)
+
+        else:
+            if self.install_type == "tree":
+                self.log.debug("Launching syslinux install instance")
+                self.install_instance = self.env.launch_instance(root_disk=(
+                    'glance', self.boot_disk_id), userdata=self.install_script)
+
+            if self.install_type == "iso":
+                self.install_instance = self.env.launch_instance(root_disk=(
+                    'glance', self.boot_disk_id), install_iso=('cinder',
+                        self.iso_volume), userdata=self.install_script)
 
     def update_status(self):
         return "RUNNING"
