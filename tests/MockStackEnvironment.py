@@ -14,15 +14,32 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# TODO: implement methods that currently just pass
 # TODO: add failures
 
 import uuid
 import logging
-from Singleton import Singleton
+from novaimagebuilder.Singleton import Singleton
+from MockNovaInstance import MockNovaInstance
 
 
 class MockStackEnvironment(Singleton):
+
+    # From http://docs.openstack.org/api/openstack-block-storage/2.0/content/Volumes.html
+    # this does not match the docstring in novaimagebuilder.StackEnvironment.get_volume_status()
+    VOLUME_STATUS_LIST = ('CREATING',
+                          'AVAILABLE',
+                          'ATTACHING',
+                          'IN-USE',
+                          'DELETING',
+                          'ERROR',
+                          'ERROR_DELETING',
+                          'BACKING-UP',
+                          'RESTORING-BACKUP',
+                          'ERROR_RESTORING')
+
+    # From the docstring in novaimagebuilder.StackEnvironment.get_image_status()
+    IMAGE_STATUS_LIST = ('QUEUED', 'SAVING', 'ACTIVE', 'KILLED', 'DELETED', 'PENDING_DELETE')
+
     def _singleton_init(self):
         super(MockStackEnvironment, self)._singleton_init()
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
@@ -30,10 +47,13 @@ class MockStackEnvironment(Singleton):
         self.cinder = False
         self.cdrom = False
         self.floppy = False
+        self.direct_boot = False
         self.keystone_srvr = None
         self.glance_srvr = None
         self.cinder_srvr = None
         self.failure = {'status': False, 'timeout': 0}
+        self.volume_status_index = 1
+        self.image_status_index = 2
 
     @property
     def keystone_server(self):
@@ -56,22 +76,25 @@ class MockStackEnvironment(Singleton):
     def is_floppy(self):
         return self.floppy
 
+    def is_direct_boot(self):
+        return self.direct_boot
+
     def upload_image_to_glance(self, name, local_path=None, location=None, format='raw', min_disk=0, min_ram=0,
                                container_format='bare', is_public=True):
-        self.log.debug("Doing mock glance upload")
-        self.log.debug("File: (%s) - Name (%s) - Format (%s) - Container (%s)" %
-                       (local_path, name, format, container_format))
+        #self.log.debug("Doing mock glance upload")
+        #self.log.debug("File: (%s) - Name (%s) - Format (%s) - Container (%s)" %
+        #               (local_path, name, format, container_format))
         return uuid.uuid4()
 
     def upload_volume_to_cinder(self, name, volume_size=None, local_path=None, location=None, format='raw',
                                 container_format='bare', is_public=True, keep_image=True):
-        self.log.debug("Doing mock glance upload and cinder copy")
-        self.log.debug("File: (%s) - Name (%s) - Format (%s) - Container (%s)" %
-                       (local_path, name, format, container_format))
-        return ( uuid.uuid4(), uuid.uuid4() )
+        #self.log.debug("Doing mock glance upload and cinder copy")
+        #self.log.debug("File: (%s) - Name (%s) - Format (%s) - Container (%s)" %
+        #               (local_path, name, format, container_format))
+        return uuid.uuid4(), uuid.uuid4()
 
     def create_volume_from_image(self, image_id, volume_size=None):
-        pass
+        return uuid.uuid4(), uuid.uuid4()
 
     def delete_image(self, image_id):
         pass
@@ -80,11 +103,11 @@ class MockStackEnvironment(Singleton):
         pass
 
     def get_volume_status(self, volume_id):
-        pass
+        return self.VOLUME_STATUS_LIST[self.volume_status_index]
 
     def get_image_status(self, image_id):
-        pass
+        return self.IMAGE_STATUS_LIST[self.image_status_index]
 
     def launch_instance(self, root_disk=None, install_iso=None, secondary_iso=None, floppy=None, aki=None, ari=None,
                         cmdline=None, userdata=None):
-        pass
+        return MockNovaInstance(object(), self)

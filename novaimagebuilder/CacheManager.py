@@ -92,7 +92,7 @@ class CacheManager(Singleton):
     # INDEX looks like
     #
     # { "fedora-19-x86_64": { "install_iso":        { "local": "/blah", "glance": "UUID", "cinder": "UUID" },
-    #                         "install_iso_kernel": { "local" 
+    #                         "install_iso_kernel": { "local"
 
     def _get_index_value(self, os_ver_arch, name, location):
         if self.index is None:
@@ -136,7 +136,7 @@ class CacheManager(Singleton):
         """
         Download a file from a URL and store it in the cache.  Uses the object_type and
         data from the OS delegate/plugin to index the file correctly.  Also treats the
-        object tyoe "install-iso" as a special case, downloading it locally and then allowing
+        object type "install-iso" as a special case, downloading it locally and then allowing
         the OS delegate to request individual files from within the ISO for extraction and
         caching.  This is used to efficiently retrieve the kernel and ramdisk from Linux
         install ISOs.
@@ -177,7 +177,7 @@ class CacheManager(Singleton):
             self.log.debug("The plugin wants to do something with the ISO - extracting stuff now")
             icd = os_plugin.iso_content_dict()
             if icd:
-                self.log.debug("Launching guestfs") 
+                self.log.debug("Launching guestfs")
                 g = guestfs.GuestFS()
                 g.add_drive_ro(local_object_filename)
                 g.launch()
@@ -194,7 +194,7 @@ class CacheManager(Singleton):
                         image_format = "ari"
                     else:
                         raise Exception("Nested object of unknown type requested")
-                    (glance_id, cinder_id) = self._do_remote_uploads(nested_obj_name, nested_object_filename, 
+                    (glance_id, cinder_id) = self._do_remote_uploads(nested_obj_name, nested_object_filename,
                                                                      format=image_format, container_format=image_format,
                                                                      use_cinder = False)
                     locations = {"local": nested_object_filename, "glance": str(glance_id), "cinder": str(cinder_id)}
@@ -216,7 +216,7 @@ class CacheManager(Singleton):
     def _do_remote_uploads(self, object_name, local_object_filename, format='raw', container_format='bare',
                            use_cinder=True):
         if self.env.is_cinder() and use_cinder:
-            (glance_id, cinder_id) = self.env.upload_volume_to_cinder(object_name, local_path=local_object_filename, 
+            (glance_id, cinder_id) = self.env.upload_volume_to_cinder(object_name, local_path=local_object_filename,
                                                                       format=format, container_format=container_format)
         else:
             cinder_id = None
