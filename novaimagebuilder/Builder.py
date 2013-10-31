@@ -96,6 +96,9 @@ class Builder(object):
             finished_image_id = instance.instance.create_image(self.install_config['name'])
             self._wait_for_glance_snapshot(finished_image_id)
             self._terminate_instance(instance.id)
+            if self.os_delegate.iso_volume_delete:
+                self.env.cinder.volumes.get(self.os_delegate.iso_volume).delete()
+                self.log.debug("Deleted install ISO volume from cinder: %s" % self.os_delegate.iso_volume)
         # Leave instance running if install did not finish
 
     def _wait_for_shutoff(self, instance, inactivity_timeout):

@@ -16,6 +16,7 @@
 import guestfs
 import uuid
 from CacheManager import CacheManager
+from ISOHelper import ISOHelper
 from BaseOS import BaseOS
 from tempfile import NamedTemporaryFile
 from shutil import copyfile
@@ -39,8 +40,6 @@ class WindowsOS(BaseOS):
         if not self.env.is_cdrom():
             raise Exception("ISO installs require a Nova environment that can support CDROM block device mapping")
         
-	if not self.env.is_floppy():
-            raise Exception("Windows installs require floppy device mapping support in NOVA")
 
         # TODO: Remove these
         self.install_artifacts = [ ]
@@ -50,13 +49,53 @@ class WindowsOS(BaseOS):
         """ Method to prepare all necessary local and remote images for an install
             This method may require significant local disk or CPU resource
         """
-        iso_locations = self.cache.retrieve_and_cache_object("install-iso", self, self.install_media_location, True)
-        self.iso_volume = iso_locations['cinder']
         # These must be created and cached beforehand
         # TODO: Automate
         driver_locations = self.cache.retrieve_and_cache_object("driver-iso", self, None, True)
         self.driver_iso_volume = driver_locations['cinder']
+        iso_locations = self.cache.retrieve_and_cache_object("install-iso",
+                self, self.install_media_location, True)
+        if self.env.is_floppy():
+            self.iso_volume = iso_locations['cinder']
+            self.iso_volume_delete = False
+            self._prepare_floppy()
+            self.log.debug ("Prepared cinder iso (%s), driver_iso (%s) and\
+                    floppy (%s) for install instance" % (self.iso_volume,
+                        self.driver_iso_volume, self.floppy_volume))    
+        else:
+            self._respin_iso(iso_locations['local'], "x86_64")
+            self.iso_volume_delete = True
 
+
+    def start_install_instance(self):
+        if self.install_type == "iso":
+            self.log.debug("Launching windows install instance")
+            if self.env.is_floppy():
+                self.install_instance = self.env.launch_instance(root_disk=('blank', 10),
+                        install_iso=('cinder', self.iso_volume),
+                        secondary_iso=('cinder',self.driver_iso_volume),
+                        floppy=('cinder',self.floppy_volume))
+            else:
+                self.install_instance = self.env.launch_instance(root_disk=('blank', 10), install_iso=('cinder', self.iso_volume), secondary_iso=('cinder', self.driver_iso_volume))
+                
+    def _respin_iso(self, iso_path, arch):
+        try:
+            new_install_iso = NamedTemporaryFile(delete=False)
+            new_install_iso_name = new_install_iso.name
+            new_install_iso.close()
+            ih = ISOHelper(iso_path, arch)
+            ih._copy_iso()
+            ih._install_script_win_v6(self.install_script.name)
+            ih._generate_new_iso_win_v6(new_install_iso_name)
+            image_name = "install-iso-%s-%s" % (self.osinfo_dict['shortid'],
+                    str(uuid.uuid4())[:8])
+            self.iso_volume = self.env.upload_volume_to_cinder(image_name,
+                    local_path=new_install_iso_name, keep_image=False)
+        finally:
+            if new_install_iso_name:
+                remove(new_install_iso_name)
+
+    def _prepare_floppy(self):
         self.log.debug("Preparing floppy with autounattend.xml")
         unattend_floppy_name = None
         unattend_file = None
@@ -88,16 +127,6 @@ class WindowsOS(BaseOS):
                 remove(unattend_floppy_name)
             if unattend_file:
                 unattend_file.close()
-
-        self.log.debug ("Prepared cinder iso (%s), driver_iso (%s) and floppy (%s) for install instance" %
-                        ( self.iso_volume, self.driver_iso_volume, self.floppy_volume ) )    
-
-    def start_install_instance(self):
-        if self.install_type == "iso":
-            self.log.debug("Launching windows install instance")
-            self.install_instance = self.env.launch_instance(root_disk=('blank', 10), install_iso=('cinder', self.iso_volume),
-                                                                        secondary_iso=('cinder',self.driver_iso_volume),
-                                                                        floppy=('cinder',self.floppy_volume)) 
 
     def update_status(self):
         return "RUNNING"

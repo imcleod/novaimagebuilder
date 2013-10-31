@@ -316,20 +316,21 @@ class StackEnvironment(Singleton):
 
         # if direct boot is not available (Havana):
         if not self.is_direct_boot():
+            instance = None
             # 0 crdom drives are needed
-            if not install_iso and not secondary_iso:
+            if not install_iso and not secondary_iso and not floppy:
                 instance = self._launch_network_install(root_disk_image_id,
                         userdata)
             # 1 cdrom drive is needed
-            elif install_iso and not secondary_iso:
+            elif install_iso and not secondary_iso and not floppy:
                 instance = self._launch_single_cdrom_install(root_disk_image_id,
                         userdata, install_iso_id)
             # 2 cdrom drives are needed
-            elif install_iso and secondary_iso:
+            elif install_iso and secondary_iso and not floppy:
                 instance = self._launch_instance_with_dual_cdrom(root_disk_image_id,
                         install_iso_id, secondary_iso_id)
-            
-            return NovaInstance(instance, self)
+            if instance:
+                return NovaInstance(instance, self)
 
         #blank root disk with ISO, ISO2 and Floppy - Windows
         if install_iso and secondary_iso and floppy:
