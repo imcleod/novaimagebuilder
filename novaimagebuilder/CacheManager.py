@@ -23,8 +23,8 @@ import guestfs
 import fcntl
 import threading
 import time
+import StackEnvironment
 from Singleton import Singleton
-from StackEnvironment import StackEnvironment
 
 
 class CacheManager(Singleton):
@@ -48,7 +48,7 @@ class CacheManager(Singleton):
     INDEX_FILE = "_cache_index"
 
     def _singleton_init(self):
-        self.env = StackEnvironment()
+        self.env = StackEnvironment.StackEnvironment()
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         self.index_filename = self.CACHE_ROOT + self.INDEX_FILE
         if not os.path.isfile(self.index_filename):
@@ -59,6 +59,7 @@ class CacheManager(Singleton):
             index_file.close()
         # This should be None except when we are actively working on it and hold a lock
         self.index = None
+        self.index_file = None
         self.locked = False
 
     def lock_and_get_index(self):
@@ -69,33 +70,33 @@ class CacheManager(Singleton):
         write_index_and_unlock() or unlock_index() depending upon whether or not the
         index has been modified.
         """
-
         # We acquire a thread lock under all circumstances
         # This is the safest approach and should be relatively harmless if we are used
         # as a module in a non-threaded Python program
         self.INDEX_THREAD_LOCK.acquire()
-
-        index_file = open(self.index_filename, os.O_CREAT)
+        # atomic create if not present
+        fd = os.open(self.index_filename, os.O_RDWR | os.O_CREAT)
         # blocking
-        fcntl.flock(index_file, fcntl.LOCK_EX)
-        index = index_file.read()
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        self.index_file = os.fdopen(fd, "r+")
+        index = self.index_file.read()
         if len(index) == 0:
             # Empty - possibly because we created it earlier - create empty dict
             self.index = { }
         else:
-            self.index = json.load(index_file)
-        index_file.close()
+            self.index = json.loads(index)
 
     def write_index_and_unlock(self):
         """
         Write contents of self.index back to the persistent file and then unlock it
         """
-        index_file = open(self.index_filename, 'w')
-        json.dump(self.index , index_file)
+        self.index_file.seek(0)
+        self.index_file.truncate()
+        json.dump(self.index , self.index_file)
         # TODO: Double-check that this is safe
-        index_file.flush()
-        fcntl.flock(index_file, fcntl.LOCK_UN)
-        index_file.close()
+        self.index_file.flush()
+        fcntl.flock(self.index_file, fcntl.LOCK_UN)
+        self.index_file.close()
         self.index = None
         self.INDEX_THREAD_LOCK.release()
 
@@ -104,9 +105,9 @@ class CacheManager(Singleton):
         Release the cache index lock without updating the persistent file
         """
         self.index = None
-        index_file = open(self.index_filename, 'r')
-        fcntl.flock(index_file, fcntl.LOCK_UN)
-        index_file.close()
+        fcntl.flock(self.index_file, fcntl.LOCK_UN)
+        self.index_file.close()
+        self.index_file = None
         self.INDEX_THREAD_LOCK.release()
 
 
@@ -155,9 +156,8 @@ class CacheManager(Singleton):
             self.index[os_ver_arch][name] = {}
 
         # If the specific location is not specified, assume value is the entire dict
+        # or a string indicating the object is pending
         if not location:
-            if type(value) is not dict:
-                raise Exception("When setting a value without a location, the value must be a dict")
             self.index[os_ver_arch][name] = value
             return
 

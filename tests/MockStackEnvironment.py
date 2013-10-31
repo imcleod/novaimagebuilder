@@ -22,9 +22,9 @@ import logging
 from Singleton import Singleton
 
 
-class MockStackEnvironment(Singleton):
+class StackEnvironment(Singleton):
     def _singleton_init(self):
-        super(MockStackEnvironment, self)._singleton_init()
+        super(StackEnvironment, self)._singleton_init()
         self.log = logging.getLogger('%s.%s' % (__name__, self.__class__.__name__))
         # Attributes controlling Mock behavior
         self.cinder = False
