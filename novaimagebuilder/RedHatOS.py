@@ -15,6 +15,7 @@
 #   limitations under the License.
 from CacheManager import CacheManager
 from BaseOS import BaseOS
+from OSInfo import OSInfo
 
 class RedHatOS(BaseOS):
 
@@ -29,6 +30,22 @@ class RedHatOS(BaseOS):
         if install_type == "iso" and not self.env.is_cdrom():
             raise Exception("ISO installs require a Nova environment that can \
                     support CDROM block device mapping")
+        if not install_script:
+            info = OSInfo()
+            install_script_string = info.install_script(self.osinfo_dict['shortid'], self.install_config)
+            install_script_string = install_script_string.replace('reboot','poweroff')
+            if self.install_type == 'tree':
+                install_script_string = install_script_string.replace('cdrom','')
+                if self.install_media_location:
+                    url = self.install_media_location
+                else:
+                    url = self.osinfo_dict['tree_list'][0].get_url()
+
+                self.install_script = "url --url=%s\n%s" % (url,
+                        install_script_string)
+            else:
+                self.install_script = install_script_string
+            
 
     def prepare_install_instance(self):
         """ Method to prepare all necessary local and remote images for an

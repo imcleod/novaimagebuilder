@@ -41,6 +41,7 @@ class BaseOS(object):
         self.install_media_location = install_media_location
         self.install_config = install_config
         self.install_script = install_script
+        self.iso_volume_delete = False
         # Subclasses can pull in the above and then do OS specific tasks to fill in missing
         # information and determine if the resulting install is possible
 

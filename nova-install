@@ -110,7 +110,7 @@ class Application(Singleton):
                 print('One of --install_iso or --install_tree must be given.')
                 return 1
 
-            install_config = {'admin_pw': self.arguments.admin_pw,
+            install_config = {'admin_password': self.arguments.admin_pw,
                               'license_key': self.arguments.license_key,
                               'arch': self.arguments.arch,
                               'disk_size': self.arguments.disk_size,

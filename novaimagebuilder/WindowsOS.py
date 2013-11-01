@@ -57,7 +57,6 @@ class WindowsOS(BaseOS):
                 self, self.install_media_location, True)
         if self.env.is_floppy():
             self.iso_volume = iso_locations['cinder']
-            self.iso_volume_delete = False
             self._prepare_floppy()
             self.log.debug ("Prepared cinder iso (%s), driver_iso (%s) and\
                     floppy (%s) for install instance" % (self.iso_volume,
